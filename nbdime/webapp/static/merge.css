@@ -1,0 +1,116 @@
+
+
+.jp-Notebook-diff {
+  width: 90%;
+  margin: auto;
+}
+
+
+/* Alternative for showing single cell when cells are equal */
+.jp-Diff-unchanged {
+  margin-left: 25%;
+  width: 50%;
+}
+
+.jp-Metadata-diff {
+  margin-bottom: 20px;
+  border: solid black thin;
+}
+
+.jp-Cell-diff {
+  margin-bottom: 20px;
+  border-top: solid #ccc 1px;
+}
+
+.jp-Diff-added > div:first-child {
+  float: left;
+  width: 50%;
+}
+
+.jp-Diff-deleted > div:first-child {
+  float: right;
+  width: 50%;
+}
+
+.jp-Diff-added .jp-Cellrow-metadata {
+  display: none;
+}
+
+.jp-Diff-deleted .jp-Cellrow-metadata {
+  display: none;
+}
+
+.jp-Diff-unchanged .jp-Cellrow-outputs {
+  display: none;
+}
+
+.jp-Diff-added .jp-Cellrow-outputs {
+  display: none;
+}
+
+.jp-Diff-deleted .jp-Cellrow-outputs {
+  display: none;
+}
+
+.jp-Diff-unchanged .jp-Output-result > * {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.jp-Cellrow-outputs .jp-Diff-twoway .jp-Diff-base {
+  float: left;
+  width: 47%;
+}
+
+.jp-Cellrow-outputs .jp-Diff-twoway .jp-Diff-remote {
+  float: right;
+  width: 47%;
+}
+
+.jp-Notebook-diff .jp-Output-result img {
+  max-width: 100%;
+}
+
+.jp-Notebook-diff .CodeMirror-merge-r-chunk { background-color: #ffecec; }
+.jp-Notebook-diff .CodeMirror-merge-r-chunk-start { border-top: 1px solid #f8cbcb; }
+.jp-Notebook-diff .CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #f8cbcb; }
+.jp-Notebook-diff .CodeMirror-merge-r-connect { fill: #ffffe0; stroke: #f8cbcb; stroke-width: 1px; }
+.jp-Notebook-diff .CodeMirror-merge-spacer { background-color: #ffecec; }
+
+.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-chunk { background-color: #dbffdb; }
+.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-chunk-start { border-top: 1px solid #a6f3a6; }
+.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #a6f3a6; }
+.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-connect { fill: #ffffe0; stroke: #a6f3a6; stroke-width: 1px; }
+.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-spacer { background-color: #dbffdb; }
+
+
+.jp-Diff-deleted .CodeMirror {
+  background-color: #ffecec;
+}
+
+.jp-Diff-added .CodeMirror {
+  background-color: #dbffdb;
+}
+
+#nbdime-header {
+  margin: auto;
+  width: 90%;
+  margin-bottom: 20px;
+}
+
+#nbdime-header-base {
+  display: inline-block;
+  width: 50%;
+  background-color: #ccc
+}
+
+#nbdime-header-remote {
+  display: inline-block;
+  width: 49%;
+  background-color: #ccc
+}
+
+#nbdime-close {
+  display: block;
+}

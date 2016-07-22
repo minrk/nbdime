@@ -496,3 +496,147 @@ class NotebookDiffWidget extends Widget {
   private _model: NotebookDiffModel;
   private _rendermime: RenderMime<Widget> = null;
 }
+
+/**
+ * CellMergeWidget for cell changes
+ */
+export
+class CellMergeWidget extends Panel {
+  /**
+   *
+   */
+  constructor(model: CellMergeModel, rendermime: RenderMime<Widget>,
+        public mimetype: string) {
+    super();
+    this.addClass(CELLMERGE_CLASS);
+    this._model = model;
+    this._rendermime = rendermime;
+
+    this.init();
+  }
+
+  protected init() {
+    var model = this.model;
+    var CURR_CLASSES = MERGE_CLASSES.slice();  // copy
+
+    /*
+     1. Unchanged or one way insert/delete:
+        Single r/w editor (merged), with appropriate coloring for insert/delete
+     2. Everything else:
+        Full 4x merge view
+    */
+
+    if (valueIn(null, model.subModels) || (
+          model.local.unchanged && model.remote.unchanged &&
+          model.merged.unchanged) ||
+           model.local.added !== model.remote.added) {
+      // Only show source by default as metadata/output should be "extra"
+      let view = CellDiffWidget.createView(
+        model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
+    } else {
+      // Setup full 4-way mergeview of source, and same for metadata and outputs
+      // as needed (if changed). Source/metadata/output are each a "row"
+      let sourceView = this.createMergeView(
+        model.local.source,
+        model.remote.source,
+        model.merged.source,
+        CURR_CLASSES);
+      sourceView.addClass(SOURCE_ROW_CLASS);
+      this.addChild(sourceView);
+
+      let metadataChanged = false;
+      let outputsChanged = false;
+      for (let m of model.subModels) {
+        metadataChanged = metadataChanged || (
+          m && m.metadata && !m.metadata.unchanged);
+
+        if (m && m.outputs && m.outputs.length > 0) {
+          for (let o of m.outputs) {
+            outputsChanged = outputsChanged || !o.unchanged;
+          }
+        }
+      }
+
+      if (metadataChanged) {
+        let metadataView = this.createMergeView(
+            model.local.metadata,
+            model.remote.metadata,
+            model.merged.metadata,
+            CURR_CLASSES);
+        metadataView.addClass(METADATA_ROW_CLASS);
+        this.addChild(metadataView);
+      }
+      if (outputsChanged || (
+            model.merged.outputs && model.merged.outputs.length > 0)) {
+        let container = new Panel();
+        // TODO: Figure out how to deal with outputs
+        let header = outputsChanged ? 'Outputs changed' : 'Outputs unchanged'
+        let collapser = new CollapsibleWidget(container, header, !outputsChanged);
+        collapser.addClass(OUTPUTS_ROW_CLASS);
+        this.addChild(collapser);
+      }
+    }
+  }
+
+  createMergeView(local: IDiffModel, remote: IDiffModel, merged: IDiffModel,
+        editorClasses: string[]): Widget {
+    let view: Widget = null;
+    console.assert(local === null || typeof local == typeof merged &&
+        remote === null || typeof remote == typeof merged);
+    if (merged instanceof StringDiffModel) {
+      view = new NbdimeMergeView(remote as IStringDiffModel, editorClasses,
+        local as IStringDiffModel, merged);
+    }
+    return view;
+  }
+
+  /**
+   * Get the model for the widget.
+   *
+   * #### Notes
+   * This is a read-only property.
+   */
+  get model(): CellMergeModel {
+    return this._model;
+  }
+
+  protected _model: CellMergeModel = null;
+  protected _rendermime: RenderMime<Widget> = null;
+}
+
+
+/**
+ * NotebookMergeWidget
+ */
+export
+class NotebookMergeWidget extends Widget {
+  constructor(model: NotebookMergeModel,
+      rendermime: RenderMime<Widget>) {
+    super();
+    this._model = model;
+    this._rendermime = rendermime;
+    let layout = this.layout = new PanelLayout();
+
+    this.addClass(NBMERGE_CLASS);
+
+    if (model.merged.metadata) {
+      layout.addChild(new MetadataDiffWidget(model.merged.metadata));
+    }
+    for (var c of model.cells) {
+      layout.addChild(new CellMergeWidget(c, rendermime, model.merged.mimetype));
+    }
+  }
+
+  /**
+   * Get the model for the widget.
+   *
+   * #### Notes
+   * This is a read-only property.
+   */
+  get model(): NotebookMergeModel {
+    return this._model;
+  }
+
+  private _model: NotebookMergeModel;
+  private _rendermime: RenderMime<Widget> = null;
+}

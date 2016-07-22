@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <script type="text/javascript" src="https://www.promisejs.org/polyfills/promise-6.1.0.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.js"></script>
+    <link href="{{ static_url('merge.css') }}" rel="stylesheet">
+    <link href="{{ static_url('cm-merge.css') }}" rel="stylesheet">
+    <link href="{{ static_url('collapsible.css') }}" rel="stylesheet">
+
+    <title>nbdime - diff and merge your Jupyter notebooks</title>
+
+  </head>
+
+  <body> <!-- onload="nbdime.init()" -->
+    <div id="nbdime-header">
+      <h3>Notebook Merge</h3>
+      <button id="nbdime-close">Close tool</button>
+      <span id="nbdime-header-local">Local</span>
+      <span id="nbdime-header-base">Base</span>
+      <span id="nbdime-header-remote">Remote</span>
+    </div> <!-- ndime-header -->
+
+    <div id="nbdime-root">
+    </div>
+    <script id='jupyter-config-data' type="application/json">{ "baseUrl": "{{ static_url }}" }</script>
+    <script id='nbdime-config-data' type="application/json">{ "base": "{{ base }}", "local": "{{ local }}", "remote": "{{remote}}"}</script>
+    <script src="{{ static_url('build/bundle.js') }}"></script>
+    <noscript>Nbdime relies on javascript for diff/merge views!</noscript>
+  </body>
+</html>

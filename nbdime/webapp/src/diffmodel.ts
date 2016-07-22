@@ -99,7 +99,7 @@ export interface IDiffModel extends ICollapsibleModel {
 
 
 /**
- * Interface for a string diff models.
+ * Interface for a string diff model.
  *
  * String diff models are used for any content where the final
  * diff should be presented as a difference between strings
@@ -772,7 +772,7 @@ export class NotebookDiffModel {
     this.cells = [];
     var take = 0;
     var skip = 0;
-    for (var e of getDiffKey(diff, 'cells')) {
+    for (var e of getDiffKey(diff, 'cells') || []) {
       var op = e.op;
       var index = e.key as number;
 

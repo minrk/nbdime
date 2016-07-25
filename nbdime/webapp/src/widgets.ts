@@ -43,14 +43,20 @@ import {
 
 import {
   CellDiffModel, NotebookDiffModel, IDiffModel,
-  IStringDiffModel, StringDiffModel, OutputDiffModel
+  IStringDiffModel, StringDiffModel, OutputDiffModel, createDirectDiffModel
 } from './diffmodel';
+
+import {
+  NotebookMergeModel, CellMergeModel
+} from './mergemodel';
 
 
 const NBDIFF_CLASS = 'jp-Notebook-diff';
+const NBMERGE_CLASS = 'jp-Notebook-merge';
 
 const ROOT_METADATA_CLASS = 'jp-Metadata-diff';
 const CELLDIFF_CLASS = 'jp-Cell-diff';
+const CELLMERGE_CLASS = 'jp-Cell-merge';
 
 const SOURCE_ROW_CLASS = 'jp-Cellrow-source';
 const METADATA_ROW_CLASS = 'jp-Cellrow-metadata';
@@ -61,7 +67,15 @@ const ADDED_DIFF_CLASS = 'jp-Diff-added';
 const DELETED_DIFF_CLASS = 'jp-Diff-deleted';
 const UNCHANGED_DIFF_CLASS = 'jp-Diff-unchanged';
 
+// Merge classes:
+const BASE_MERGE_CLASS = 'jp-Merge-base';
+const LOCAL_MERGE_CLASS = 'jp-Merge-local';
+const REMOTE_MERGE_CLASS = 'jp-Merge-remote';
+const MERGED_MERGE_CLASS = 'jp-Merge-merged';
+
 const DIFF_CLASSES = ['jp-Diff-base', 'jp-Diff-remote'];
+const MERGE_CLASSES = [BASE_MERGE_CLASS, LOCAL_MERGE_CLASS,
+    REMOTE_MERGE_CLASS, MERGED_MERGE_CLASS];
 
 const COLLAPISBLE_HEADER = 'jp-Collapsible-header';
 const COLLAPISBLE_HEADER_ICON = 'jp-Collapsible-header-icon';
@@ -167,12 +181,12 @@ class CollapsibleWidget extends Widget {
  */
 class NbdimeMergeView extends Widget {
   constructor(remote: IStringDiffModel, editorClasses: string[],
-              local?: IStringDiffModel, merged?: any) {
+              local?: IStringDiffModel, merged?: IStringDiffModel) {
     super();
     let opts: MergeViewEditorConfiguration = {remote: remote};
     opts.collapseIdentical = true;
     opts.local = local ? local : null;
-    //opts.merged = merged ? merged : null;
+    opts.merged = merged ? merged : null;
     this._mergeview = new MergeView(this.node, opts);
     this._editors = [];
     if (this._mergeview.left) {
@@ -328,14 +342,15 @@ class CellDiffWidget extends Panel {
     }
 
     // Add inputs and outputs, on a row-by-row basis
-    let sourceView = this.createView(
-      model.source, model, CURR_DIFF_CLASSES);
+    let ctor = this.constructor as typeof CellDiffWidget;
+    let sourceView = ctor.createView(
+      model.source, model, CURR_DIFF_CLASSES, this._rendermime);
     sourceView.addClass(SOURCE_ROW_CLASS);
     this.addChild(sourceView);
 
     if (model.metadata && !model.metadata.unchanged) {
-      let metadataView = this.createView(
-        model.metadata, model, CURR_DIFF_CLASSES);
+      let metadataView = ctor.createView(
+        model.metadata, model, CURR_DIFF_CLASSES, this._rendermime);
       metadataView.addClass(METADATA_ROW_CLASS);
       this.addChild(metadataView);
     }
@@ -343,8 +358,8 @@ class CellDiffWidget extends Panel {
       let container = new Panel();
       let changed = false;
       for (let o of model.outputs) {
-        let outputsWidget = this.createView(
-          o, model, CURR_DIFF_CLASSES);
+        let outputsWidget = ctor.createView(
+          o, model, CURR_DIFF_CLASSES, this._rendermime);
         container.addChild(outputsWidget);
         changed = changed || !o.unchanged || o.added || o.deleted;
       }
@@ -358,11 +373,13 @@ class CellDiffWidget extends Panel {
   /**
    * Create a new sub-view.
    */
-  createView(model: IDiffModel, parent: CellDiffModel, editorClasses: string[]): Widget {
+  static
+  createView(model: IDiffModel, parent: CellDiffModel,
+        editorClasses: string[], rendermime: RenderMime<Widget>): Widget {
     let view: Widget = null;
     if (model instanceof StringDiffModel) {
       if (model.unchanged && parent.cellType == 'markdown') {
-        let renderer = this._rendermime.getRenderer('text/markdown');
+        let renderer = rendermime.getRenderer('text/markdown');
         view = renderer.render('text/markdown', model.base);
       } else {
         view = new NbdimeMergeView(model as IStringDiffModel, editorClasses);
@@ -374,13 +391,13 @@ class CellDiffWidget extends Panel {
       // 3) Unknown types: Stringified JSON diff.
       let tmodel = model as OutputDiffModel;
       let renderable = RenderableOutputView.canRenderUntrusted(tmodel);
-      for (let mt of this._rendermime.order) {
+      for (let mt of rendermime.order) {
         let key = tmodel.hasMimeType(mt);
         if (key) {
           if (!renderable || valueIn(mt, stringDiffMimeTypes)) {
             view = new NbdimeMergeView(tmodel.stringify(key), editorClasses);
           } else if (renderable) {
-            view = new RenderableOutputView(tmodel, editorClasses, this._rendermime);
+            view = new RenderableOutputView(tmodel, editorClasses, rendermime);
           }
           break;
         }
@@ -397,11 +414,13 @@ class CellDiffWidget extends Panel {
     }
     let container = new Panel();
     if (model.added && !parent.added) {
+      // Implies this is added output
       let addSpacer = new Widget()
       addSpacer.node.textContent = 'Output added';
       container.addChild(addSpacer);
       container.addClass(ADDED_DIFF_CLASS);
     } else if (model.deleted && !parent.deleted) {
+      // Implies this is deleted output
       let delSpacer = new Widget()
       delSpacer.node.textContent = 'Output deleted';
       container.addChild(delSpacer);

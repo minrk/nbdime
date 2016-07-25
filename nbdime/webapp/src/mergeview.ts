@@ -54,12 +54,19 @@ class DiffView {
           insert: 'CodeMirror-merge-l-inserted',
           del: 'CodeMirror-merge-l-deleted',
           connect: 'CodeMirror-merge-l-connect'}
-      : { chunk: 'CodeMirror-merge-r-chunk',
+      : type == "right" ?
+        { chunk: 'CodeMirror-merge-r-chunk',
           start: 'CodeMirror-merge-r-chunk-start',
           end: 'CodeMirror-merge-r-chunk-end',
           insert: 'CodeMirror-merge-r-inserted',
           del: 'CodeMirror-merge-r-deleted',
-          connect: 'CodeMirror-merge-r-connect'};
+          connect: 'CodeMirror-merge-r-connect'}
+      : { chunk: 'CodeMirror-merge-m-chunk',
+          start: 'CodeMirror-merge-m-chunk-start',
+          end: 'CodeMirror-merge-m-chunk-end',
+          insert: 'CodeMirror-merge-m-inserted',
+          del: 'CodeMirror-merge-m-deleted',
+          connect: 'CodeMirror-merge-m-connect'};
   }
 
   init(pane: HTMLElement, edit: CodeMirror.Editor, options: CodeMirror.MergeView.MergeViewEditorConfiguration) {
@@ -449,7 +456,7 @@ export interface MergeViewEditorConfiguration extends CodeMirror.EditorConfigura
   /**
    * Provides the partial merge input for a three-way merge.
    */
-  //merged?: IEditorModel;
+  merged?: IStringDiffModel;
 
   /**
    * When true, the base of a three-way merge is shown. Defaults to true.
@@ -469,7 +476,7 @@ class MergeView {
     this.options = options;
     var remote = options.remote;
     var local = options.local;
-    var merged = null; //options.merged;
+    var merged = options.merged;
 
     var wrap = []
     var left: DiffView = this.left = null;
@@ -499,30 +506,35 @@ class MergeView {
     if (hasMerge) {
       console.assert(remote.base == local.base);
 
-      left = this.left = new DiffView(local, 'left', this.alignChunks);
+      left = this.left = new DiffView(local, 'left', this.alignChunks.bind(this));
       this.diffViews.push(left);
-      //wrap.push(left.buildGap());
       var leftPane = elt('div', null, 'CodeMirror-merge-pane');
+      leftPane.className += ' CodeMirror-merge-pane-local';
       wrap.push(leftPane);
 
       let showBase = options.showBase !== false;
       if (showBase) {
+        wrap.push(left.buildGap());
         var basePane = elt('div', null, 'CodeMirror-merge-pane');
+        basePane.className += ' CodeMirror-merge-pane-base';
         wrap.push(basePane);
       }
 
-      right = this.right = new DiffView(remote, 'right', this.alignChunks);
+      right = this.right = new DiffView(remote, 'right', this.alignChunks.bind(this));
       this.diffViews.push(right);
-      //wrap.push(right.buildGap());
       var rightPane = elt('div', null, 'CodeMirror-merge-pane');
+      rightPane.className += ' CodeMirror-merge-pane-remote';
+      wrap.push(right.buildGap());
       wrap.push(rightPane);
-      rightPane.className += ' CodeMirror-merge-pane-rightmost';
 
       wrap.push(elt('div', null, null, 'height: 0; clear: both;'));
 
-      /*merge = this.merge = new DiffView(merged, 'merge', this.alignChunks);
+      merge = this.merge = new DiffView(merged, 'merge', this.alignChunks.bind(this));
+      this.diffViews.push(merge);
       var mergePane = elt('div', null, 'CodeMirror-merge-pane');
-      wrap.push(mergePane);*/
+      mergePane.className += ' CodeMirror-merge-pane-final';
+      wrap.push(merge.buildGap());
+      wrap.push(mergePane);
       var panes = 3 + (showBase ? 1 : 0);
     } else {
       // Base always used
@@ -541,9 +553,9 @@ class MergeView {
         right = this.right = new DiffView(remote, 'right', this.alignChunks.bind(this));
         this.diffViews.push(right);
         var rightPane = elt('div', null, 'CodeMirror-merge-pane');
+        rightPane.className += ' CodeMirror-merge-pane-remote';
         wrap.push(right.buildGap());
         wrap.push(rightPane);
-        rightPane.className += ' CodeMirror-merge-pane-rightmost';
         var panes = 2;
       }
       wrap.push(elt('div', null, null, 'height: 0; clear: both;'));
@@ -554,24 +566,35 @@ class MergeView {
       this.base = CodeMirror(basePane, copyObj(options));
     }
 
-    if (left) left.init(leftPane, this.base,
-      copyObj({readOnly: true}, copyObj(options)) as CodeMirror.MergeView.MergeViewEditorConfiguration);
-    if (right) right.init(rightPane, this.base,
-      copyObj({readOnly: true}, copyObj(options)) as CodeMirror.MergeView.MergeViewEditorConfiguration);
-    //if (merge) right.init(mergePane, this.base, copyObj({readOnly: false}, copyObj(options)));
+    if (left) {
+      left.init(leftPane, this.base,
+        copyObj({readOnly: true}, copyObj(options)) as CodeMirror.MergeView.MergeViewEditorConfiguration);
+    }
+    if (right) {
+      right.init(rightPane, this.base,
+        copyObj({readOnly: true}, copyObj(options)) as CodeMirror.MergeView.MergeViewEditorConfiguration);
+    }
+    if (merge) {
+      merge.init(mergePane, this.base,
+        copyObj({readOnly: false}, copyObj(options)) as CodeMirror.MergeView.MergeViewEditorConfiguration);
+    }
 
     if (options.collapseIdentical) {
       this.base.operation(function() {
           collapseIdenticalStretches(self, options.collapseIdentical);
       });
     }
-    if (this.left || this.right) {
-      (this.left || this.right).alignChunks(true);
+    this.initialized = true;
+    if (this.left || this.right || this.merge) {
+      (this.left || this.right || this.merge).alignChunks(true);
     }
   }
 
   alignChunks(force?: boolean) {
     let dealigned = false;
+    if (!this.initialized) {
+      return;
+    }
     for (let dv of this.diffViews) {
       if (dv.dealigned) {
         dealigned = true;
@@ -633,32 +656,12 @@ class MergeView {
     f();
   }
 
-  remoteEditor() {
-    return this.right && this.right.orig;
-  }
-
-  localEditor() {
-    return this.left && this.left.orig;
-  }
-
   setShowDifferences(val) {
     if (this.right) {
       this.right.setShowDifferences(val);
     }
     if (this.left) {
       this.left.setShowDifferences(val);
-    }
-  }
-
-  rightChunks() {
-    if (this.right) {
-      return this.right.chunks;
-    }
-  }
-
-  leftChunks() {
-    if (this.left) {
-      return this.left.chunks;
     }
   }
 
@@ -670,6 +673,7 @@ class MergeView {
   options: any;
   diffViews: DiffView[];
   aligners: CodeMirror.LineWidget[];
+  initialized: boolean = false;
 }
 
 function collapseSingle(cm: CodeMirror.Editor, from: number, to: number): {mark: CodeMirror.TextMarker, clear: () => void} {

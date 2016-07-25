@@ -78,11 +78,11 @@
 .jp-Notebook-diff .CodeMirror-merge-r-connect { fill: #ffffe0; stroke: #f8cbcb; stroke-width: 1px; }
 .jp-Notebook-diff .CodeMirror-merge-spacer { background-color: #ffecec; }
 
-.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-chunk { background-color: #dbffdb; }
-.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-chunk-start { border-top: 1px solid #a6f3a6; }
-.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #a6f3a6; }
-.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-r-connect { fill: #ffffe0; stroke: #a6f3a6; stroke-width: 1px; }
-.jp-Notebook-diff .CodeMirror-merge-pane-rightmost .CodeMirror-merge-spacer { background-color: #dbffdb; }
+.jp-Notebook-diff .CodeMirror-merge-pane-remote .CodeMirror-merge-r-chunk { background-color: #dbffdb; }
+.jp-Notebook-diff .CodeMirror-merge-pane-remote .CodeMirror-merge-r-chunk-start { border-top: 1px solid #a6f3a6; }
+.jp-Notebook-diff .CodeMirror-merge-pane-remote .CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #a6f3a6; }
+.jp-Notebook-diff .CodeMirror-merge-pane-remote .CodeMirror-merge-r-connect { fill: #ffffe0; stroke: #a6f3a6; stroke-width: 1px; }
+.jp-Notebook-diff .CodeMirror-merge-pane-remote .CodeMirror-merge-spacer { background-color: #dbffdb; }
 
 
 .jp-Diff-deleted .CodeMirror {

@@ -23,12 +23,11 @@
 }
 
 .CodeMirror-merge-pane-local,.CodeMirror-merge-pane-remote,.CodeMirror-merge-pane-base {
-  width: 33%;
+  width: 30%;
 }
 
 .CodeMirror-merge-pane-final {
-  width: 100%;
-  margin-top: 10px;
+  width: 940%;
   border-top: solid #ddd 1px;
 }
 
@@ -42,13 +41,36 @@
 .jp-Notebook-merge .CodeMirror-merge-r-chunk-start { border-top: 1px solid #f8cbcb; }
 .jp-Notebook-merge .CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #f8cbcb; }
 .jp-Notebook-merge .CodeMirror-merge-r-connect { fill: #ffecec; stroke: #f8cbcb; stroke-width: 1px; }
+.jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-r-inserted { background-color: #f8cbcb }
 
 .jp-Notebook-merge .CodeMirror-merge-l-chunk { background-color: #ececff; }
 .jp-Notebook-merge .CodeMirror-merge-l-chunk-start { border-top: 1px solid #cbcbf8; }
 .jp-Notebook-merge .CodeMirror-merge-l-chunk-end { border-bottom: 1px solid #cbcbf8; }
 .jp-Notebook-merge .CodeMirror-merge-l-connect { fill: #ececff; stroke: #cbcbf8; stroke-width: 1px; }
+.jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-l-inserted { background-color: #cbcbf8 }
 
+.CodeMirror-merge-pane-base .CodeMirror-line .CodeMirror-merge-m-deleted,
+.CodeMirror-merge-pane-base .CodeMirror-line .CodeMirror-merge-l-deleted,
+.CodeMirror-merge-pane-base .CodeMirror-line .CodeMirror-merge-r-deleted {
+  background-color: initial;
+  color: #b00
+}
 
+.jp-Notebook-merge .CodeMirror-merge-gap {
+  height: 50%;
+  width: 6%;
+}
+
+.CodeMirror-merge-clear + .CodeMirror-merge-gap {
+  border-top: solid #ddd 1px;
+}
+
+.jp-Notebook-merge .CodeMirror-merge-pane-remote,
+.jp-Notebook-merge .CodeMirror-merge-pane-base,
+.jp-Notebook-merge .CodeMirror-merge-pane-final {
+  position: relative;
+  left: 6%;
+}
 
 .jp-Diff-deleted .CodeMirror {
   background-color: #ffecec;

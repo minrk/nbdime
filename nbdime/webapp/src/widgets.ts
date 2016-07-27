@@ -549,9 +549,9 @@ class CellMergeWidget extends Panel {
           model.local.unchanged && model.remote.unchanged &&
           model.merged.unchanged) ||
            model.local.added !== model.remote.added) {
-      // Only show source by default as metadata/output should be "extra"
       let view = CellDiffWidget.createView(
         model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
+      this.addChild(view);
     } else {
       // Setup full 4-way mergeview of source, and same for metadata and outputs
       // as needed (if changed). Source/metadata/output are each a "row"
@@ -589,6 +589,7 @@ class CellMergeWidget extends Panel {
             model.merged.outputs && model.merged.outputs.length > 0)) {
         let container = new Panel();
         // TODO: Figure out how to deal with outputs
+
         let header = outputsChanged ? 'Outputs changed' : 'Outputs unchanged'
         let collapser = new CollapsibleWidget(container, header, !outputsChanged);
         collapser.addClass(OUTPUTS_ROW_CLASS);
@@ -600,6 +601,7 @@ class CellMergeWidget extends Panel {
   createMergeView(local: IDiffModel, remote: IDiffModel, merged: IDiffModel,
         editorClasses: string[]): Widget {
     let view: Widget = null;
+    // It does not make sense for diffmodel types to differ:
     console.assert(local === null || typeof local == typeof merged &&
         remote === null || typeof remote == typeof merged);
     if (merged instanceof StringDiffModel) {

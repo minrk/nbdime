@@ -72,7 +72,7 @@ class DiffView {
   init(pane: HTMLElement, edit: CodeMirror.Editor, options: CodeMirror.MergeView.MergeViewEditorConfiguration) {
     this.edit = edit;
     (this.edit.state.diffViews || (this.edit.state.diffViews = [])).push(this);
-    let orig = this.model.remote;
+    let orig = this.model.remote || "";
     this.orig = CodeMirror(pane, copyObj({value: orig}, copyObj(options)));
     this.orig.state.diffViews = [this];
 
@@ -527,7 +527,7 @@ class MergeView {
       wrap.push(right.buildGap());
       wrap.push(rightPane);
 
-      wrap.push(elt('div', null, null, 'height: 0; clear: both;'));
+      wrap.push(elt('div', null, "CodeMirror-merge-clear", 'height: 0; clear: both;'));
 
       merge = this.merge = new DiffView(merged, 'merge', this.alignChunks.bind(this));
       this.diffViews.push(merge);
@@ -558,7 +558,7 @@ class MergeView {
         wrap.push(rightPane);
         var panes = 2;
       }
-      wrap.push(elt('div', null, null, 'height: 0; clear: both;'));
+      wrap.push(elt('div', null, "CodeMirror-merge-clear", 'height: 0; clear: both;'));
     }
 
     var wrapElt = this.wrap = node.appendChild(elt('div', wrap, 'CodeMirror-merge CodeMirror-merge-' + panes + 'pane'));

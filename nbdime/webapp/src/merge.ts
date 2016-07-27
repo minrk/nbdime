@@ -100,7 +100,7 @@ function onMerge(e: Event) {
   var r = (document.getElementById('merge-remote') as HTMLInputElement).value;
   requestMerge(b, c, r);
   let uri = '/merge?base=' + encodeURIComponent(b) +
-    '&local=' + encodeURIComponent(c);
+    '&local=' + encodeURIComponent(c) +
     '&remote=' + encodeURIComponent(r);
   history.pushState({base: b, local: c, remote: r},
     'Merge: "' + c + '" - "' + b + '" - "' + r + '"', uri);

@@ -242,10 +242,13 @@ export class StringDiffModel implements IStringDiffModel {
         0 : 1;
 
       if (current) {
+        // Have existing chunk, check for overlap
         if (isAddition) {
           if (current.inOrig(range.from.line)) {
             current.origTo = Math.max(current.origTo,
-                                      range.to.line + 1);
+                range.to.line + endOffset + linediff);
+            current.editTo = Math.max(current.editTo,
+                range.to.line + endOffset + editOffset);
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);
@@ -253,8 +256,10 @@ export class StringDiffModel implements IStringDiffModel {
           }
         } else {
           if (current.inEdit(range.from.line)) {
+            current.origTo = Math.max(current.origTo,
+                range.to.line + endOffset - editOffset);
             current.editTo = Math.max(current.editTo,
-                                      range.to.line + 1);
+                range.to.line + endOffset + linediff);
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);
@@ -263,6 +268,7 @@ export class StringDiffModel implements IStringDiffModel {
         }
       }
       if (!current) {
+        // No current chunk, start a new one
         if (isAddition) {
           startOrig = range.from.line;
           startEdit = startOrig + editOffset;

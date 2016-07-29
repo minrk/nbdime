@@ -29,7 +29,7 @@ import {
 } from './diffutil';
 
 import {
-  NotebookMergeModel
+  NotebookMergeModel, IMergeDecision
 } from './mergemodel';
 
 import {
@@ -46,11 +46,7 @@ import {
  */
 function showMerge(data: {
     base: nbformat.INotebookContent,
-    local_diff: IDiffEntry[],
-    remote_diff: IDiffEntry[],
-    merged_diff: IDiffEntry[],
-    local_conflicts: IDiffEntry[],
-    remote_conflicts: IDiffEntry[],
+    merge_decisions: IMergeDecision[]
     }) {
   const transformers = [
     new JavascriptRenderer(),
@@ -73,9 +69,7 @@ function showMerge(data: {
   let rendermime = new RenderMime<Widget>(renderers, order);
 
   let nbmModel = new NotebookMergeModel(data.base,
-      data.local_diff,
-      data.remote_diff,
-      data.merged_diff);
+      data.merge_decisions);
   let nbdWidget = new NotebookMergeWidget(nbmModel, rendermime);
 
   let root = document.getElementById('nbdime-root');

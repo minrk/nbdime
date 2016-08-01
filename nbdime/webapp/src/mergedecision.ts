@@ -32,10 +32,10 @@ function popPath(diffs: IDiffEntry[][]): {diffs: IDiffEntry[][], key: string} {
   if (diffs.length < 1) {
     return null;
   }
-  // Find first non-null diff:
-  let i = 0;
+  // Find first non-null, non-empty diff list:
+  let i = 0, j = 0;
   for (let di of diffs) {
-    if (di !== null) {
+    if (di !== null && di.length > 0) {
       break;
     }
     i++;
@@ -47,24 +47,31 @@ function popPath(diffs: IDiffEntry[][]): {diffs: IDiffEntry[][], key: string} {
   }
 
   // Check if ops and keys are equal for all non-null diffs
-  let op = diffs[i].op;
-  let key = diffs[i].key;
+  let op = diffs[i][0].op;
+  let key = diffs[i][0].key;
   for (let di of diffs) {
-    if (di && (di.op !== op || di.key !== key)) {
-      return null;
+    if (di && di.length > 0) {
+      // Note that while diff lists can have 2 entries, they should never cause
+      // a pop, as they will ahve a difference in op.
+      for (let dj of di) {
+        if (dj.op !== op || dj.key !== key) {
+          return null;
+        }
+      }
     }
   }
   // Inspect patch op further along:
   if (op == "patch") {
-    // Only go further in if sub-diff has length 1
+    // Only pop if sub-diff has length 1
     for (let di of diffs) {
-      if (di && (di as IDiffPatch).diff.length !== 1) {
+      if (di && (di.length !== 1 || (di[0] as IDiffPatch).diff.length !== 1)) {
         return null;
       }
     }
     let retDiffs = []
     for (let di of diffs) {
-      retDiffs = retDiffs.concat((di as IDiffPatch).diff)
+      // Note: Assumes check of length === 1 above:
+      retDiffs.push((di[0] as IDiffPatch).diff)
     }
     return {diffs: retDiffs, key: key.toString()};
   }
@@ -79,7 +86,7 @@ export function resolveCommonPaths(decisions: IMergeDecision[]) {
   for (let md of decisions) {
     let diffs = [md.local_diff, md.remote_diff];
     if (md.action === "custom") {
-      diffs = diffs.concat(md.custom_diff);
+      diffs.push(md.custom_diff);
     }
     let path = md.common_path || "/";
     let popped: {diffs: IDiffEntry[][], key: string} = null;
@@ -89,4 +96,5 @@ export function resolveCommonPaths(decisions: IMergeDecision[]) {
     }
     md.common_path = path;
   }
+  return dec;
 }

@@ -29,8 +29,12 @@ import {
 } from './diffutil';
 
 import {
-  NotebookMergeModel, IMergeDecision
+  NotebookMergeModel
 } from './mergemodel';
+
+import {
+  IMergeDecision
+} from './mergedecision';
 
 import {
   NotebookMergeWidget

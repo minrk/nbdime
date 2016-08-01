@@ -18,7 +18,7 @@ import {
 
 import {
   IMergeDecision, resolveCommonPaths
-} from './mergedecisions';
+} from './mergedecision';
 
 import {
   deepCopy
@@ -99,7 +99,7 @@ function createInsertedCellMergeModels(
         default:
           break;
       }
-      models = models.concat([new CellMergeModel(local_i, null, merged_i)]);
+      models.push(new CellMergeModel(local_i, null, merged_i));
     }
   } else if (mergeDecision.remote_diff) {
     let d = mergeDecision.remote_diff[0] as IDiffAddRange;
@@ -119,7 +119,7 @@ function createInsertedCellMergeModels(
         default:
           break;
       }
-      models = models.concat([new CellMergeModel(local_i, null, merged_i)]);
+      models.push(new CellMergeModel(local_i, null, merged_i));
     }
   } else {
     throw "Invalid arguments to createInsertedCellMergeModel!"
@@ -139,42 +139,42 @@ function splitCellChunks(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
   for (let md of mergeDecisions) {
     if (md.local_diff.length == 2) {
       // Split off local
-      output = output.concat([{
+      output.push({
         "common_path": md.common_path,
         "local_diff": md.local_diff.slice(0, 1),
         "remote_diff": [],
         "action": "local", // Check for custom action first?
         "conflict": md.conflict,
         "custom_diff": null
-      }]);
-      output = output.concat([{
+      });
+      output.push({
         "common_path": md.common_path,
         "local_diff": md.local_diff.slice(1),
         "remote_diff": md.remote_diff,
         "action": md.action,
         "conflict": md.conflict,
         "custom_diff": md.custom_diff
-      }]);
+      });
     } else if (md.remote_diff.length == 2) {
       // Split off remote
-      output = output.concat([{
+      output.push({
         "common_path": md.common_path,
         "local_diff": [],
         "remote_diff": md.remote_diff.slice(0, 1),
         "action": "remote", // Check for custom action first?
         "conflict": md.conflict,
         "custom_diff": null
-      }]);
-      output = output.concat([{
+      });
+      output.push({
         "common_path": md.common_path,
         "local_diff": md.local_diff,
         "remote_diff": md.remote_diff.slice(1),
         "action": md.action,
         "conflict": md.conflict,
         "custom_diff": md.custom_diff
-      }]);
+      });
     } else {
-      output = output.concat([md]);  // deepCopy?
+      output.push(md);  // deepCopy?
     }
   }
   return output;
@@ -182,15 +182,102 @@ function splitCellChunks(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
 
 
 /**
- * Split "removerange" diffs on cell level into individual decisions!
+ * Split "removerange" diffs on cell list level into individual decisions!
  */
 function splitCellRemovals(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
   // TODO: Implement!
-}
+  let output: IMergeDecision[] = [];
 
+  let makeSplitPart = function(md: IMergeDecision, key: number,
+        local: boolean, remote: boolean) {
+    let newMd: IMergeDecision = {
+      "common_path": md.common_path,
+      "conflict": md.conflict,
+      "action": md.action  // assert action in ["remote", "base"]?
+    };
+    let newDiff = [{
+        "key": key,
+        "op": DiffOp.SEQDELETE,
+        "length": 1
+    }];
+    console.assert(local || remote);
+    if (local) {
+      newMd.local_diff = newDiff;
+    }
+    if (remote) {
+      newMd.remote_diff = newDiff;
+    }
+    return newMd;
+  }
 
-function applyDecision(mergeDecision: IMergeDecision, base: nbformat.ICell): nbformat.ICell {
-  // TODO: Implement
+  for (let md of mergeDecisions) {
+    if (md.common_path !== "/cells") {
+      output.push(md);
+      continue;
+    }
+
+    let dl = md.local_diff && md.local_diff.length > 0 ? md.local_diff[-1] : null;
+    let dr = md.remote_diff && md.remote_diff.length > 0 ? md.remote_diff[-1] : null;
+    // TODO: Does it make sense to split on custom?
+
+    if (dl && !dr || dr && !dl) {
+      // One-way diff
+      let d = dl ? dl : dr;
+
+      if (d.op == DiffOp.SEQDELETE && (d as IDiffRemoveRange).length > 1) {
+        // Found a one-way diff to split!
+        for (let i = 0; i < (d as IDiffRemoveRange).length; ++i) {
+          output.push(makeSplitPart(md, (d.key as number) + i, !!dl, !!dr));
+        }
+      } else {
+        // Not a removerange type:
+        output.push(md);
+        continue;
+      }
+    } else if (dr && dl) {
+      // Two way diff, keys need to be matched
+      if (dl.op != DiffOp.SEQDELETE && dr.op != DiffOp.SEQDELETE) {
+        // Not a removerange type:
+        output.push(md);
+        continue;
+      } else if (dl.op == dr.op) {
+        // Both sides have removerange, just match keys/length
+        // Note: Assume that ranges have overlap, since they are in one decision
+        let kl_start = dl.key as number;
+        let kr_start = dr.key as number;
+        let start = Math.min(kl_start, kr_start);
+        let kl_end = kl_start + (dl as IDiffRemoveRange).length;
+        let kr_end = kr_start + (dr as IDiffRemoveRange).length;
+        let end = Math.max(kl_end, kr_end);
+        for (let i = start; i < end; ++i) {
+          let local = i >= kl_start && i < kl_end;
+          let remote = i >= kr_start && i < kr_end;
+          output.push(makeSplitPart(md, i, local, remote));
+        }
+      } else {
+        // One side has removerange, the other a patch op (implied)
+        let remLocal = dl.op == DiffOp.SEQDELETE;
+        let rOp = (remLocal ? dl : dr) as IDiffRemoveRange;
+        let pOp = (remLocal ? dr : dl) as IDiffPatch;
+        console.assert(pOp.op == DiffOp.PATCH);
+
+        let pidx = pOp.key as number;
+        let start = rOp.key as number;
+        for (let i = start; i < start + rOp.length; ++i) {
+          let newMd = makeSplitPart(md, i, remLocal, !remLocal);
+          if (i === pidx) {
+            if (remLocal) {
+              newMd.remote_diff = [pOp];
+            } else  {
+              newMd.local_diff = [pOp];
+            }
+          }
+          output.push(newMd);
+        }
+      }
+    }
+  }
+  return output;
 }
 
 
@@ -264,7 +351,7 @@ export class NotebookMergeModel {
     // Simply create unchanged cells first, then we will modify as neccessary
     // below.
     for (let bc of this.base.cells) {
-      cells = cells.concat([createUnchangedCellMergeModel(bc, this.mimetype)]);
+      cells.push(createUnchangedCellMergeModel(bc, this.mimetype));
     }
 
     let insertOffset = 0;
@@ -277,7 +364,7 @@ export class NotebookMergeModel {
 
       let diffs = [md.local_diff, md.remote_diff];
       if (md.action === "custom") {
-        diffs = diffs.concat(md.custom_diff);
+        diffs.push(md.custom_diff);
       }
       if (key === "/cells") {
         let idx: number = null;
@@ -336,7 +423,7 @@ export class NotebookMergeModel {
 
         // Modify merged diff model as needed
         if (!md.action || md.action == "base") {
-          // Keep unchanged model
+          // Keep unchanged model, i.e. do nothing here
         } else if (md.action == "local") {
           c.merged = c.local; // deepcopy?
         } else if (md.action == "remote") {

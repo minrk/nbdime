@@ -640,11 +640,11 @@ class NotebookMergeWidget extends Widget {
 
     this.addClass(NBMERGE_CLASS);
 
-    if (model.merged.metadata) {
+    /*if (model.metadata) {
       layout.addChild(new MetadataDiffWidget(model.merged.metadata));
-    }
+    }*/
     for (var c of model.cells) {
-      layout.addChild(new CellMergeWidget(c, rendermime, model.merged.mimetype));
+      layout.addChild(new CellMergeWidget(c, rendermime, model.mimetype));
     }
   }
 

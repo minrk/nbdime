@@ -14,7 +14,7 @@ export function requestJson(url: string, argument: any, callback: any, onError: 
         var result = JSON.parse(xhttp.responseText);
         callback(result);
       } else {
-        onError();
+        onError(xhttp.responseText);
       }
     }
   };

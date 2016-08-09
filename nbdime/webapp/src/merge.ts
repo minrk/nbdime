@@ -143,8 +143,10 @@ function onMergeRequestCompleted(data: any) {
 /**
  * Callback for a failed diff request
  */
-function onMergeRequestFailed() {
+function onMergeRequestFailed(response: string) {
   console.log('Merge request failed.');
+  let root = document.getElementById('nbdime-root');
+  root.innerHTML = '<pre>' + response + '</pre>';
 }
 
 

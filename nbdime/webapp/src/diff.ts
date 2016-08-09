@@ -129,8 +129,10 @@ function onDiffRequestCompleted(data: any) {
 /**
  * Callback for a failed diff request
  */
-function onDiffRequestFailed() {
+function onDiffRequestFailed(response: string) {
   console.log('Diff request failed.');
+  let root = document.getElementById('nbdime-root');
+  root.innerHTML = '<pre>' + response + '</pre>';
 }
 
 

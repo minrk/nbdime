@@ -376,13 +376,13 @@ class CellDiffWidget extends Panel {
   static
   createView(model: IDiffModel, parent: CellDiffModel,
         editorClasses: string[], rendermime: RenderMime<Widget>): Widget {
-    let view: Widget = null;
+    let view: Promise<Widget> = null;
     if (model instanceof StringDiffModel) {
       if (model.unchanged && parent.cellType == 'markdown') {
-        let renderer = rendermime.getRenderer('text/markdown');
-        view = renderer.render('text/markdown', model.base);
+        view = rendermime.render({'text/markdown': model.base});
       } else {
-        view = new NbdimeMergeView(model as IStringDiffModel, editorClasses);
+        view = Promise.resolve(
+          new NbdimeMergeView(model as IStringDiffModel, editorClasses));
       }
     } else if (model instanceof OutputDiffModel) {
       // Take one of three actions, depending on output types
@@ -395,22 +395,27 @@ class CellDiffWidget extends Panel {
         let key = tmodel.hasMimeType(mt);
         if (key) {
           if (!renderable || valueIn(mt, stringDiffMimeTypes)) {
-            view = new NbdimeMergeView(tmodel.stringify(key), editorClasses);
+            view = Promise.resolve(
+              new NbdimeMergeView(tmodel.stringify(key), editorClasses));
           } else if (renderable) {
-            view = new RenderableOutputView(tmodel, editorClasses, rendermime);
+            view = Promise.resolve(
+              new RenderableOutputView(tmodel, editorClasses, rendermime));
           }
           break;
         }
       }
       if (!view) {
-        view = new NbdimeMergeView(tmodel.stringify(), editorClasses);
+        view = Promise.resolve(
+              new NbdimeMergeView(tmodel.stringify(), editorClasses));
       }
     } else {
       throw 'Unrecognized model type.'
     }
     if (model.collapsible) {
-      view = new CollapsibleWidget(
-        view, model.collapsibleHeader, model.startCollapsed);
+      view = view.then(function(widget: Widget) {
+        return new CollapsibleWidget(
+          widget, model.collapsibleHeader, model.startCollapsed)
+      })
     }
     let container = new Panel();
     if (model.added && !parent.added) {
@@ -430,7 +435,9 @@ class CellDiffWidget extends Panel {
     } else {
       container.addClass(TWOWAY_DIFF_CLASS);
     }
-    container.addChild(view);
+    view.then(function(widget: Widget) {
+      container.addChild(widget);
+    })
     return container;
   }
 

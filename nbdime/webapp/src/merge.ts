@@ -8,7 +8,7 @@ import {
 } from 'jupyterlab/lib/notebook/notebook/nbformat';
 
 import {
-  RenderMime, MimeMap, IRenderer
+  RenderMime
 } from 'jupyterlab/lib/rendermime';
 
 import {
@@ -62,7 +62,7 @@ function showMerge(data: {
     new TextRenderer()
   ];
 
-  let renderers: MimeMap<IRenderer<Widget>> = {};
+  let renderers: RenderMime.MimeMap<RenderMime.IRenderer<Widget>> = {};
   let order: string[] = [];
   for (let t of transformers) {
     for (let m of t.mimetypes) {
@@ -70,7 +70,8 @@ function showMerge(data: {
       order.push(m);
     }
   }
-  let rendermime = new RenderMime<Widget>(renderers, order);
+  let rendermime = new RenderMime<Widget>({
+    renderers:renderers, order:order});
 
   let nbmModel = new NotebookMergeModel(data.base,
       data.merge_decisions);

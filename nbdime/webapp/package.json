@@ -41,7 +41,7 @@
     "codemirror": "^5.11.0",
     "json-stable-stringify": "^1.0.1",
     "jupyter-js-services": "^0.11.4",
-    "jupyterlab": "^0.1.1",
+    "jupyterlab": "^0.1.2",
     "phosphor-commandpalette": "^0.2.0",
     "phosphor-keymap": "^0.8.0",
     "phosphor-panel": "^1.0.0-rc.1",

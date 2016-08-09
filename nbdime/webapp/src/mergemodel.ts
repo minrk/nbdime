@@ -137,7 +137,7 @@ function createInsertedCellMergeModels(
 function splitCellChunks(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
   let output: IMergeDecision[] = [];
   for (let md of mergeDecisions) {
-    if (md.local_diff.length == 2) {
+    if (md.local_diff && md.local_diff.length == 2) {
       // Split off local
       output.push({
         "common_path": md.common_path,
@@ -155,7 +155,7 @@ function splitCellChunks(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
         "conflict": md.conflict,
         "custom_diff": md.custom_diff
       });
-    } else if (md.remote_diff.length == 2) {
+    } else if (md.remote_diff && md.remote_diff.length == 2) {
       // Split off remote
       output.push({
         "common_path": md.common_path,

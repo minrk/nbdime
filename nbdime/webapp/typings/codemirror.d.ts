@@ -12,13 +12,29 @@ declare namespace CodeMirror {
     export var Pass: any;
 
     function fromTextArea(host: HTMLTextAreaElement, options?: EditorConfiguration): CodeMirror.EditorFromTextArea;
-    
+
     var commands: any;
 
     var version: string;
-        
+
+    interface modespec {
+      [ key: string ]: string;
+      name?: string;
+      mode: string;
+      mime: string;
+    }
+
+    var modes: {
+      [key: string]: any;
+    };
+
+    var mimeModes: {
+        [key: string]: any;
+    }
+
     /** An object containing default values for all options.
-     * You can assign to its properties to modify defaults (though this won't affect editors that have already been created).*/
+     * You can assign to its properties to modify defaults
+     * (though this won't affect editors that have already been created).*/
     var defaults: any;
 
     /** If you want to define extra methods in terms of the CodeMirror API, it is possible to use defineExtension.
@@ -47,6 +63,12 @@ declare namespace CodeMirror {
 
     function on(element: any, eventName: string, handler: Function): void;
     function off(element: any, eventName: string, handler: Function): void;
+
+    /**
+     * Fired on a keydown event on the editor.
+     */
+    function on(editor: Editor, eventName: 'keydown', handler: (instance: Editor, event: KeyboardEvent) => void): void;
+    function off(editor: Editor, eventName: 'keydown', handler: (instance: Editor, event: KeyboardEvent) => void): void;
 
     /** Fired whenever a change occurs to the document. changeObj has a similar type as the object passed to the editor's "change" event,
     but it never has a next property, because document change events are not batched (whereas editor change events are). */
@@ -187,7 +209,7 @@ declare namespace CodeMirror {
             handle: any;
             text: string;
             /** Object mapping gutter IDs to marker elements. */
-            gutterMarks: any;
+            gutterMarkers: any;
             textClass: string;
             bgClass: string;
             wrapClass: string;
@@ -228,14 +250,7 @@ declare namespace CodeMirror {
 
         /** Get an { left , top , width , height , clientWidth , clientHeight } object that represents the current scroll position, the size of the scrollable area,
         and the size of the visible area(minus scrollbars). */
-        getScrollInfo(): {
-            left: any;
-            top: any;
-            width: any;
-            height: any;
-            clientWidth: any;
-            clientHeight: any;
-        }
+        getScrollInfo(): CodeMirror.ScrollInfo;
 
         /** Scrolls the given element into view. pos is a { line , ch } position, referring to a given character, null, to refer to the cursor.
         The margin parameter is optional. When given, it indicates the amount of pixels around the given area that should be made visible as well. */
@@ -273,14 +288,14 @@ declare namespace CodeMirror {
         /** Given an { left , top } object , returns the { line , ch } position that corresponds to it.
         The optional mode parameter determines relative to what the coordinates are interpreted. It may be "window" , "page"(the default) , or "local". */
         coordsChar(object: { left: number; top: number; }, mode?: string): CodeMirror.Position;
-        
+
         /** Computes the line at the given pixel height. mode can be one of the same strings that coordsChar accepts. */
         lineAtHeight(height: number, mode?: string): number
-    
+
         /** Computes the height of the top of a line, in the coordinate system specified by mode (see coordsChar), which defaults to "page".
          When a line below the bottom of the document is specified, the returned value is the bottom of the last line in the document. */
         heightAtLine(line: number | LineHandle, mode?: string): number
-    
+
         /** Returns the line height of the default font for the editor. */
         defaultTextHeight(): number;
 
@@ -417,24 +432,54 @@ declare namespace CodeMirror {
 
         /** Expose the state object, so that the Editor.state.completionActive property is reachable*/
         state: any;
-        
-        curOp: {
-            cm: CodeMirror.Editor,
-            viewChanged: boolean,      // Flag that indicates that lines might need to be redrawn
-            startHeight: number,        // Used to detect need to update scrollbar
-            forceUpdate: boolean,      // Used to force a redraw
-            updateInput: any,       // Whether to reset the input textarea
-            typing: boolean,           // Whether this reset should be careful to leave existing text (for compositing)
-            changeObjs: any,        // Accumulated changes, for firing change events
-            cursorActivityHandlers: any, // Set of handlers to fire cursorActivity on
-            cursorActivityCalled: any, // Tracks which cursorActivity handlers have been called already
-            selectionChanged: boolean, // Whether the selection needs to be redrawn
-            updateMaxLine: boolean,    // Set when the widest line needs to be determined anew
-            scrollLeft: any, scrollTop: any, // Intermediate scroll position, not pushed to DOM yet
-            scrollToPos: any,       // Used to scroll to a specific position
-            focus: boolean,
-            id: number           // Unique ID
-        }
+
+        curOp: Operation;
+    }
+
+    interface Operation {
+        cm: CodeMirror.Editor;
+
+        /** Flag that indicates that lines might need to be redrawn */
+        viewChanged: boolean;
+
+        /** Used to detect need to update scrollbar */
+        startHeight: number;
+
+        /** Used to force a redraw */
+        forceUpdate: boolean;
+
+        /** Whether to reset the input textarea */
+        updateInput: any;
+
+        /** Whether this reset should be careful to leave existing text (for compositing) */
+        typing: boolean;
+
+        /** Accumulated changes, for firing change events */
+        changeObjs: any;
+
+        /** Set of handlers to fire cursorActivity on */
+        cursorActivityHandlers: any;
+
+        /** Tracks which cursorActivity handlers have been called already */
+        cursorActivityCalled: any;
+
+        /** Whether the selection needs to be redrawn */
+        selectionChanged: boolean;
+
+        /** Set when the widest line needs to be determined anew */
+        updateMaxLine: boolean;
+
+        /** Intermediate scroll position, not pushed to DOM yet */
+        scrollLeft: any, scrollTop: any;
+
+        /** Used to scroll to a specific position */
+        scrollToPos: any;
+
+        /**  */
+        focus: boolean;
+
+        /** Unique ID */
+        id: number;
     }
 
     interface EditorFromTextArea extends Editor {
@@ -640,6 +685,15 @@ declare namespace CodeMirror {
 
     interface LineHandle {
         text: string;
+    }
+
+    interface ScrollInfo {
+        left: any;
+        top: any;
+        width: any;
+        height: any;
+        clientWidth: any;
+        clientHeight: any;
     }
 
     interface TextMarker {
@@ -1107,6 +1161,15 @@ declare namespace CodeMirror {
      * is a mode specification as in the EditorConfiguration mode option.
      */
     function getMode<T>(config: CodeMirror.EditorConfiguration, mode: any): Mode<T>;
+
+    /** Define a mimetype.
+     */
+    function defineMIME(mimetype: string, mode: any): void;
+
+    /**
+     * A mode that encompasses many mode types.
+     */
+    function multiplexingMode<T>(...modes: any[]): Mode<T>;
 
     /**
      * Utility function from the overlay.js addon that allows modes to be combined. The mode given as the base argument takes care of

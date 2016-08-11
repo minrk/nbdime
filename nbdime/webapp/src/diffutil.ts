@@ -4,9 +4,9 @@
 
 import * as CodeMirror from 'codemirror';
 
-import { 
+import {
   valueIn
-} from './util'; 
+} from './util';
 
 /**
  * The indentation to use for JSON stringify.
@@ -64,7 +64,7 @@ export interface IDiffEntryBase {
   /**
    * A string identifying the diff operation type, as defined by DiffOp.
    */
-  op: string;   
+  op: string;
 }
 
 
@@ -134,9 +134,46 @@ export interface IDiffPatch extends IDiffEntryBase {
  */
 export type IDiffEntry = (IDiffAddRange | IDiffRemoveRange | IDiffPatch | IDiffAdd | IDiffRemove | IDiffReplace);
 
+/** Create a replacement diff entry */
+export
+function opReplace(key: string | number, value: any): IDiffReplace {
+  return {'op': DiffOp.REPLACE, 'key': key, 'value': value};
+}
+
+/** Create an addition diff entry */
+export
+function opAdd(key: string | number, value: any): IDiffAdd {
+  return {'op': DiffOp.ADD, 'key': key, 'value': value};
+}
+
+/** Create a removal diff entry */
+export
+function opRemove(key: string | number): IDiffRemove {
+  return {'op': DiffOp.REMOVE, 'key': key};
+}
+
+/** Create a removal diff entry */
+export
+function opAddRange(key: string | number, valuelist: any[]): IDiffAddRange {
+  return {'op': DiffOp.SEQINSERT, 'key': key, 'valuelist': valuelist};
+}
+
+/** Create a range removal diff entry */
+export
+function opRemoveRange(key: string | number, length: number): IDiffRemoveRange {
+  return {'op': DiffOp.SEQDELETE, 'key': key, 'length': length};
+}
+
+/** Create a range removal diff entry */
+export
+function opPatch(key: string | number, diff: IDiffEntry[]): IDiffPatch {
+  return {'op': DiffOp.PATCH, 'key': key, 'diff': diff};
+}
+
+
 /**
  * Search the list of diffs for an entry with the given key.
- * 
+ *
  * Returns the first found entry, or null if not entry was found.
  */
 export function getDiffKey(diff: IDiffEntry[], key:string) : IDiffEntry[] {
@@ -173,7 +210,7 @@ export class DiffRangeRaw {
     this.from = from;
     this.to = from + length;
   }
-  
+
   /**
    * Change both `from` and `to` fields by the given offset
    */
@@ -181,7 +218,7 @@ export class DiffRangeRaw {
     this.from += offset;
     this.to += offset;
   }
-  
+
   /**
    * The starting index of the range.
    */
@@ -194,9 +231,9 @@ export class DiffRangeRaw {
 }
 
 /**
- * Class representing a string (diff) range in the format of 
+ * Class representing a string (diff) range in the format of
  * CodeMirror.Positions. Mainly makes sense for string diffs.
- * 
+ *
  * The class also has fields to ease chunking of diffs without reparsing the
  * text.
  */
@@ -217,7 +254,7 @@ export class DiffRangePos {
   /**
    * Whether to include the first line of the range (from.line) when chunking.
    * If false, from.line + 1 should be used instead.
-   * 
+   *
    * Typically used when the diff starts with a newline.
    */
   chunkStartLine: boolean;
@@ -252,7 +289,7 @@ function findLineNumber(nlPos: number[], index: number): number {
 }
 
 /**
- * Function to convert an array of DiffRangeRaw to DiffRangePos. The 
+ * Function to convert an array of DiffRangeRaw to DiffRangePos. The
  * `text` parameter is the text in which the ranges exist.
  */
 export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
@@ -267,7 +304,7 @@ export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
   for (let r of raws) {
     // First `from` position:
     let line = findLineNumber(adIdx, r.from);
-    let lineStartIdx = line > 0 ? adIdx[line-1] + 1 : 0; 
+    let lineStartIdx = line > 0 ? adIdx[line-1] + 1 : 0;
     let from = CodeMirror.Pos(line, r.from - lineStartIdx);
 
     // Then `to` position:

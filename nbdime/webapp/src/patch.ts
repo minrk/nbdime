@@ -102,22 +102,25 @@ function patchObject(base: Object, diff: IDiffEntry[]) : Object {
   let patched: any = {};
   let keysToCopy = Object.keys(base);
 
-  for (let e of diff) {
-    let op = e.op, key = e.key as string;
+  if (diff) {
+    for (let e of diff) {
+      let op = e.op;
+      let key = e.key as string;
 
-    if (op == DiffOp.ADD) {
-      console.assert(!(key in keysToCopy));
-      patched[key] = (e as IDiffAdd).value
-    } else if (op == DiffOp.REMOVE) {
-      keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
-    } else if (op == DiffOp.REPLACE) {
-      keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
-      patched[key] = (e as IDiffAdd).value;
-    } else if (op == DiffOp.PATCH) {
-      keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
-      patched[key] = patch(base[key], (e as IDiffPatch).diff)
-    } else {
-      throw 'Invalid op ' + op;
+      if (op === DiffOp.ADD) {
+        console.assert(!(key in keysToCopy));
+        patched[key] = (e as IDiffAdd).value;
+      } else if (op === DiffOp.REMOVE) {
+        keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
+      } else if (op === DiffOp.REPLACE) {
+        keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
+        patched[key] = (e as IDiffAdd).value;
+      } else if (op === DiffOp.PATCH) {
+        keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
+        patched[key] = patch(base[key], (e as IDiffPatch).diff)
+      } else {
+        throw 'Invalid op ' + op;
+      }
     }
   }
 
@@ -125,7 +128,7 @@ function patchObject(base: Object, diff: IDiffEntry[]) : Object {
   for (let key of keysToCopy) {
     patched[key] = _deepCopy(base[key]);
   }
-  return patched
+  return patched;
 }
 
 /**
@@ -393,8 +396,8 @@ function patchString(base: string, diff: IDiffEntry[], level: number, stringifyP
  * turns null input into empty string.
  */
 export function stringify(values: string | any[] | { [key: string] : any},
-                        level?: number, indentFirst?: boolean) : string {
-  var ret = (values === null) ? '' : stableStringify(values, {space: JSON_INDENT});
+                          level?: number, indentFirst?: boolean) : string {
+  let ret = (values === null) ? '' : stableStringify(values, {space: JSON_INDENT});
   if (level) {
     ret = _indent(ret, level, indentFirst);
   }
@@ -409,7 +412,7 @@ export function stringify(values: string | any[] | { [key: string] : any},
  * applying the given ops. 
  */
 function _entriesAfter(remainingKeys: string[], ops: { [key: string]: IDiffEntry},
-                    isAddition?: boolean): boolean {
+                       isAddition?: boolean): boolean {
   let cop = isAddition !== false ? DiffOp.REMOVE : DiffOp.ADD;
   for (let key of remainingKeys) {
     if (!(key in ops) || ops[key].op !== cop) {
@@ -428,11 +431,11 @@ function _entriesAfter(remainingKeys: string[], ops: { [key: string]: IDiffEntry
 function _indent(str: string, levels: number, indentFirst?: boolean) : string {
   indentFirst = indentFirst !== false;
   let lines = str.split('\n');
-  var ret: string[] = new Array(lines.length);
+  let ret: string[] = new Array(lines.length);
   if (!indentFirst) {
     ret[0] = lines[0];
   }
-  for (var i = indentFirst ? 0 : 1; i < lines.length; i++) {
+  for (let i = indentFirst ? 0 : 1; i < lines.length; i++) {
     ret[i] = repeatString(JSON_INDENT, levels) + lines[i];
   }
   return ret.join('\n');
@@ -442,10 +445,10 @@ function _indent(str: string, levels: number, indentFirst?: boolean) : string {
  * The keys present in a Object class. Equivalent to Object.keys, but with a
  * fallback if not defined.
  */
-var _objectKeys = Object.keys || function (obj) {
-  var has = Object.prototype.hasOwnProperty || function () { return true };
-  var keys: any[] = [];
-  for (var key in obj) {
+let _objectKeys = Object.keys || function (obj) {
+  let has = Object.prototype.hasOwnProperty || function () { return true; };
+  let keys: any[] = [];
+  for (let key in obj) {
     if (has.call(obj, key)) {
       keys.push(key);
     }
@@ -462,7 +465,7 @@ function _onlyUnique(value: any, index: any, self: any) {
  * Get all unique keys that are either in `obj`, `diffKeys` or both.
  * Returned as a sorted list.
  */
-function _getAllKeys(obj: Object, diffKeys: string[]){
+function _getAllKeys(obj: Object, diffKeys: string[]) {
   return _objectKeys(obj).concat(diffKeys).filter(_onlyUnique).sort();
 }
 
@@ -473,10 +476,10 @@ function _makeKeyString(key: string, level: number) {
 
 /** Shift all positions in given ranges by same amount */
 function _offsetRanges(offset: number, additions: DiffRangeRaw[], deletions: DiffRangeRaw[]) {
-  for (var a of additions) {
+  for (let a of additions) {
     a.offset(offset);
   }
-  for (var d of deletions) {
+  for (let d of deletions) {
     d.offset(offset);
   }
 }
@@ -487,22 +490,24 @@ function _offsetRanges(offset: number, additions: DiffRangeRaw[], deletions: Dif
  */
 function _adjustRangesByJSONEscapes(jsonString: string, ranges: DiffRangeRaw[]) {
   // First find all escaped characters, and expansion coefficients
-  var simpleEscapes = [
+  let simpleEscapes = [
       '\\\"', '\\\\', '\\/', '\\b', '\\f', '\\n', '\\r', '\\t'];
-  var surrogateUnicodes = /\\uD[89A-Fa-f][0-9a-fA-F]{2}\\uD[c-fC-F][0-9a-fA-F]{2}/g;
+  let surrogateUnicodes = /\\uD[89A-Fa-f][0-9a-fA-F]{2}\\uD[c-fC-F][0-9a-fA-F]{2}/g;
   // Look for unicodes that are not part of a surrogate:
-  var unicodes = /(?!\\uD[c-fC-F][0-9a-fA-F]{2})\\u(?!D[89A-Fa-f][0-9a-fA-F]{2})\d{4}/g;
+  let unicodes = /(?!\\uD[c-fC-F][0-9a-fA-F]{2})\\u(?!D[89A-Fa-f][0-9a-fA-F]{2})\d{4}/g;
   const SIMPLE_ESCAPE_LENGTH = 2;
   const UNICODE_ESCAPE_LENGTH = 6;
   const SURROGATE_ESCAPE_LENGTH = 12;
   
   // Equal sized arrays identifying location and expansion 
   // factor of each escaped character:
-  var indices: number[] = [];
-  var expansions: number[] = [];
+  let indices: number[] = [];
+  let expansions: number[] = [];
   
-  for (var e of simpleEscapes) {
-    var len = JSON.parse('"' + e + '"').length as number;
+
+  for (let e of simpleEscapes) {
+    let len = JSON.parse('"' + e + '"').length as number;
+    let i = 0;
     while (1) {
       i = jsonString.indexOf(e, i);
       if (i < 0) {
@@ -529,9 +534,10 @@ function _adjustRangesByJSONEscapes(jsonString: string, ranges: DiffRangeRaw[]) 
   
   // Now adjust differences
   // TODO: Optimize this algorithm?
-  for (var i = 0; i < indices.length; i++) {
+  for (let i = 0; i < indices.length; i++) {
     for (let r of ranges) {
-      var idx = indices[i], exp = expansions[i];
+      let idx = indices[i];
+      let exp = expansions[i];
       if (r.from > idx) {
         r.from += exp;
       }

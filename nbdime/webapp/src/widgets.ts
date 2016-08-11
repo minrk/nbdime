@@ -546,7 +546,7 @@ class CellMergeWidget extends Panel {
     var CURR_CLASSES = MERGE_CLASSES.slice();  // copy
 
     /*
-     1. Unchanged or one way insert/delete:
+     1. Unchanged or one way insert/delete of cell:
         Single r/w editor (merged), with appropriate coloring for insert/delete
      2. Everything else:
         Full 4x merge view
@@ -555,7 +555,7 @@ class CellMergeWidget extends Panel {
     if (valueIn(null, model.subModels) || (
           model.local.unchanged && model.remote.unchanged &&
           model.merged.unchanged) ||
-           model.local.added !== model.remote.added) {
+          model.local.added !== model.remote.added) {
       let view = CellDiffWidget.createView(
         model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
       this.addChild(view);

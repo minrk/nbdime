@@ -26,7 +26,7 @@ import {
 import 'codemirror/lib/codemirror.css';
 
 import {
-  DiffView, MergeView, MergeViewEditorConfiguration
+  DiffView, MergeView, IMergeViewEditorConfiguration
 } from './mergeview';
 
 import {
@@ -182,7 +182,7 @@ class NbdimeMergeView extends Widget {
   constructor(remote: IStringDiffModel, editorClasses: string[],
               local?: IStringDiffModel, merged?: IStringDiffModel) {
     super();
-    let opts: MergeViewEditorConfiguration = {remote: remote};
+    let opts: IMergeViewEditorConfiguration = {remote: remote};
     opts.collapseIdentical = true;
     opts.local = local ? local : null;
     opts.merged = merged ? merged : null;

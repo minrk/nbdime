@@ -506,9 +506,15 @@ class MergeView {
     if (hasMerge) {
       console.assert(remote.base == local.base);
 
-      left = this.left = new DiffView(local, 'left', this.alignChunks.bind(this));
-      this.diffViews.push(left);
-      var leftPane = elt('div', null, 'CodeMirror-merge-pane');
+      if (local.remote === null) {
+        // Local value was deleted
+        left = this.left = null;
+        var leftPane = elt('div', 'Value missing', 'CodeMirror-merge-pane');
+      } else {
+        left = this.left = new DiffView(local, 'left', this.alignChunks.bind(this));
+        this.diffViews.push(left);
+        var leftPane = elt('div', null, 'CodeMirror-merge-pane');
+      }
       leftPane.className += ' CodeMirror-merge-pane-local';
       wrap.push(leftPane);
 
@@ -520,11 +526,17 @@ class MergeView {
         wrap.push(basePane);
       }
 
-      right = this.right = new DiffView(remote, 'right', this.alignChunks.bind(this));
-      this.diffViews.push(right);
-      var rightPane = elt('div', null, 'CodeMirror-merge-pane');
+      if (remote.remote === null) {
+        // Remote value was deleted
+        right = this.right = null;
+        var rightPane = elt('div', 'Value missing', 'CodeMirror-merge-pane');
+      } else {
+        right = this.right = new DiffView(remote, 'right', this.alignChunks.bind(this));
+        this.diffViews.push(right);
+        var rightPane = elt('div', null, 'CodeMirror-merge-pane');
+        wrap.push(right.buildGap());
+      }
       rightPane.className += ' CodeMirror-merge-pane-remote';
-      wrap.push(right.buildGap());
       wrap.push(rightPane);
 
       wrap.push(elt('div', null, "CodeMirror-merge-clear", 'height: 0; clear: both;'));

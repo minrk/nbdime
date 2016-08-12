@@ -72,6 +72,22 @@
   left: 6%;
 }
 
+.jp-Merge-oneway-local,.jp-Merge-oneway-remote {
+  width: 75%;
+}
+
+.jp-Merge-oneway-remote {
+  margin-left: 25%;
+}
+
+.jp-Merge-oneway-local .CodeMirror {
+  background-color: #ececff;
+}
+
+.jp-Merge-oneway-remote .CodeMirror {
+  background-color: #ffecec;
+}
+
 .jp-Diff-deleted .CodeMirror {
   background-color: #ffecec;
 }

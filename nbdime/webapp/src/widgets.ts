@@ -549,12 +549,27 @@ class CellMergeWidget extends Panel {
     let model = this.model;
     let CURR_CLASSES = MERGE_CLASSES.slice();  // copy
 
+    let header = new Panel();
+    header.addClass('jp-Merge-cell-header');
+    header.addChild(new Widget());
+    this.addChild(header);
+    this.header = header;
+
     /*
      1. Unchanged or one way insert/delete of cell:
         Single r/w editor (merged), with appropriate coloring for insert/delete
      2. Everything else:
         Full 4x merge view
     */
+    let ladd = model.local && model.local.added;
+    let ldel = model.local && model.local.deleted;
+    let radd = model.remote && model.remote.added;
+    let rdel = model.remote && model.remote.deleted;
+    if (ladd && !radd || ldel && !rdel) {
+      this.headerTitle = ladd ? 'Cell added locally' : 'Cell deleted locally';
+    } else if (radd && !ladd || rdel && !ldel) {
+      this.headerTitle = radd ? 'Cell added remotely' : 'Cell deleted remotely';
+    }
 
     if (valueIn(null, model.subModels) || (
           model.local.unchanged && model.remote.unchanged &&
@@ -562,6 +577,11 @@ class CellMergeWidget extends Panel {
           model.local.added !== model.remote.added) {
       let view = CellDiffWidget.createView(
         model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
+      if (ladd && !radd || ldel && !rdel) {
+        this.addClass('jp-Merge-oneway-local');
+      } else if (radd && !ladd || rdel && !ldel) {
+        this.addClass('jp-Merge-oneway-remote');
+      }
       this.addChild(view);
     } else {
       // Setup full 4-way mergeview of source, and same for metadata and outputs
@@ -577,6 +597,9 @@ class CellMergeWidget extends Panel {
       let metadataChanged = false;
       let outputsChanged = false;
       for (let m of model.subModels) {
+        if (m.deleted) {
+          continue;
+        }
         metadataChanged = metadataChanged || (
           m && m.metadata && !m.metadata.unchanged);
 
@@ -612,9 +635,6 @@ class CellMergeWidget extends Panel {
   createMergeView(local: IDiffModel, remote: IDiffModel, merged: IDiffModel,
                   editorClasses: string[]): Widget {
     let view: Widget = null;
-    // It does not make sense for diffmodel types to differ:
-    console.assert(local === null || typeof local === typeof merged &&
-        remote === null || typeof remote === typeof merged);
     if (merged instanceof StringDiffModel) {
       view = new NbdimeMergeView(remote as IStringDiffModel, editorClasses,
         local as IStringDiffModel, merged);
@@ -623,6 +643,12 @@ class CellMergeWidget extends Panel {
   }
 
   mimetype: string;
+
+  header: Panel;
+
+  set headerTitle(value: string) {
+    this.header.childAt(0).node.innerText = value;
+  }
 
   /**
    * Get the model for the widget.

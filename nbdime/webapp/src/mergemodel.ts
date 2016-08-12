@@ -16,7 +16,7 @@ import {
 } from './diffmodel';
 
 import {
-  IMergeDecision, resolveCommonPaths, buildDiffs, pushPatchDecision
+  IMergeDecision, resolveCommonPaths, buildDiffs
 } from './mergedecision';
 
 import {
@@ -131,7 +131,11 @@ export class CellMergeModel {
     console.assert(!this._local && !this._remote && !this._merged);
 
     if (arraysEqual(decision.common_path, ['cells'])) {
-      this._applyCellDecision(decision);
+      let decisions = this._applyCellDecision(decision);
+      for (let md of decisions) {
+        md.common_path = md.common_path.slice(2);
+        this.decisions.push(md);
+      }
     } else {
       decision.common_path = decision.common_path.slice(2);
       this.decisions.push(decision);
@@ -148,7 +152,7 @@ export class CellMergeModel {
               d.key + '\"';
       }
       out.push({
-        'common_path': md.common_path.slice(),
+        'common_path': md.common_path.concat([patch.key]),
         'conflict': md.conflict,
         'action': md.action,
         'local_diff': local ? [d] : null,
@@ -237,12 +241,12 @@ export class CellMergeModel {
           this._local = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'local';
           newDecisions = newDecisions.concat(this.splitPatch(
-            md, md.remote_diff[0] as IDiffPatch, true));
+            md, md.remote_diff[0] as IDiffPatch, false));
         } else {
           this._remote = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'remote';
           newDecisions = newDecisions.concat(this.splitPatch(
-            md, md.local_diff[0] as IDiffPatch, false));
+            md, md.local_diff[0] as IDiffPatch, true));
         }
       }
     }

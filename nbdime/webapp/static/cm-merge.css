@@ -11,6 +11,10 @@
   max-height: calc(100vh - 4em);
 }
 
+.CodeMirror-merge-4pane .CodeMirror-merge-pane-deleted {
+  display: none;
+}
+
 .CodeMirror-merge-pane-unchanged { width: 100%; }
 .CodeMirror-merge-pane-deleted, .CodeMirror-merge-pane-added { width: 94%; }
 .CodeMirror-merge-1pane .CodeMirror-merge-gap { width: 6%; }

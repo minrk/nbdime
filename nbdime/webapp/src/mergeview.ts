@@ -41,20 +41,18 @@ export type DiffClasses = {chunk: string, start: string, end: string, insert: st
 CodeMirror.defaults.autoRefresh = true;
 
 
-var updating = false;
-
 export
 class DiffView {
   constructor(public model: IStringDiffModel, public type: string,
-        public alignChunks: (force?: boolean) => void) {
-    this.classes = type == 'left'
+              public alignChunks: (force?: boolean) => void) {
+    this.classes = type === 'left'
       ? { chunk: 'CodeMirror-merge-l-chunk',
           start: 'CodeMirror-merge-l-chunk-start',
           end: 'CodeMirror-merge-l-chunk-end',
           insert: 'CodeMirror-merge-l-inserted',
           del: 'CodeMirror-merge-l-deleted',
           connect: 'CodeMirror-merge-l-connect'}
-      : type == "right" ?
+      : type === 'right' ?
         { chunk: 'CodeMirror-merge-r-chunk',
           start: 'CodeMirror-merge-r-chunk-start',
           end: 'CodeMirror-merge-r-chunk-end',
@@ -72,7 +70,7 @@ class DiffView {
   init(pane: HTMLElement, edit: CodeMirror.Editor, options: CodeMirror.MergeView.MergeViewEditorConfiguration) {
     this.edit = edit;
     (this.edit.state.diffViews || (this.edit.state.diffViews = [])).push(this);
-    let orig = this.model.remote || "";
+    let orig = this.model.remote || '';
     this.orig = CodeMirror(pane, copyObj({value: orig}, copyObj(options)));
     this.orig.state.diffViews = [this];
 
@@ -94,15 +92,16 @@ class DiffView {
   }
 
   registerUpdate() {
-    var editState = {from: 0, to: 0, marked: []};
-    var origState = {from: 0, to: 0, marked: []};
-    var debounceChange, updatingFast = false;
-    var self: DiffView = this;
-    var updating = false;
+    let editState = {from: 0, to: 0, marked: []};
+    let origState = {from: 0, to: 0, marked: []};
+    let debounceChange;
+    let updatingFast = false;
+    let self: DiffView = this;
+    let updating = false;
     function update(mode?: string) {
       updating = true;
       updatingFast = false;
-      if (mode == 'full') {
+      if (mode === 'full') {
         if (self.copyButtons) {
           clear(self.copyButtons);
         }
@@ -141,7 +140,7 @@ class DiffView {
     }
     function change(_cm, change) {
       // Update faster when a line was added/removed
-      setDealign(change.text.length - 1 != change.to.line - change.from.line);
+      setDealign(change.text.length - 1 !== change.to.line - change.from.line);
     }
     this.edit.on('change', change);
     this.orig.on('change', change);
@@ -156,12 +155,12 @@ class DiffView {
   }
 
   buildGap(): HTMLElement {
-    var lock = this.lockButton = elt('div', null, 'CodeMirror-merge-scrolllock');
+    let lock = this.lockButton = elt('div', null, 'CodeMirror-merge-scrolllock');
     lock.title = 'Toggle locked scrolling';
-    var lockWrap = elt('div', [lock], 'CodeMirror-merge-scrolllock-wrap');
-    var self: DiffView = this;
+    let lockWrap = elt('div', [lock], 'CodeMirror-merge-scrolllock-wrap');
+    let self: DiffView = this;
     CodeMirror.on(lock, 'click', function() { self.setScrollLock(!self.lockScroll); });
-    var gapElts = [lockWrap];
+    let gapElts = [lockWrap];
     /*if (this.mv.options.revertButtons !== false) {
         this.copyButtons = elt('div', null, 'CodeMirror-merge-copybuttons-' + this.type);
         CodeMirror.on(this.copyButtons, 'click', function(e) {
@@ -180,7 +179,7 @@ class DiffView {
   }
 
   registerScroll(): void {
-    var self = this;
+    let self = this;
     this.edit.on('scroll', function() {
       self.syncScroll(EventDirection.OUTGOING);
     });
@@ -198,7 +197,7 @@ class DiffView {
       return;
     }
     // editor: What triggered event, other: What needs to be synced
-    var editor, other, now = +new Date;
+    let editor, other, now = +new Date;
     if (type == EventDirection.OUTGOING) {
       editor = this.edit;
       other = this.orig;
@@ -220,15 +219,15 @@ class DiffView {
       return;
     }
 
-    var sInfo = other.getScrollInfo();
+    let sInfo = other.getScrollInfo();
     // Don't queue an event if already synced.
-    if (other.state.scrollPosition.top == sInfo.top &&
-        other.state.scrollPosition.left == sInfo.left) {
+    if (other.state.scrollPosition.top === sInfo.top &&
+        other.state.scrollPosition.left === sInfo.left) {
       return;
     }
     // Throttle by requestAnimationFrame().
     // If event is outgoing, this will lead to a one frame delay of other DiffViews
-    var self = this;
+    let self = this;
     window.requestAnimationFrame(function() {
       other.scrollTo(other.state.scrollPosition.left, other.state.scrollPosition.top);
       other.state.scrollTicking = false;
@@ -240,32 +239,36 @@ class DiffView {
 
   setScrollLock(val: boolean, action?: boolean) {
     this.lockScroll = val;
-    if (val && action != false) this.syncScroll(EventDirection.OUTGOING);
+    if (val && action !== false) {
+      this.syncScroll(EventDirection.OUTGOING);
+    }
     this.lockButton.innerHTML = val ? '\u21db\u21da' : '\u21db&nbsp;&nbsp;\u21da';
   }
 
 
-
-  // FIXME maybe add a margin around viewport to prevent too many updates
   updateMarks(editor: CodeMirror.Editor, diff: DiffRangePos[],
-        state: any, type: DIFF_OP) {
+              state: any, type: DIFF_OP) {
     let classes = this.classes;
     let self = this;
-    function markChunk(editor, from, to) {
-      for (var i = from; i < to; ++i) {
-        var line = editor.addLineClass(i, 'background', classes.chunk);
-        if (i == from) editor.addLineClass(line, 'background', classes.start);
-        if (i == to - 1) editor.addLineClass(line, 'background', classes.end);
+    function markChunk(editor: CodeMirror.Editor, from: number, to: number) {
+      for (let i = from; i < to; ++i) {
+        let line = editor.addLineClass(i, 'background', classes.chunk);
+        if (i === from) {
+          editor.addLineClass(line, 'background', classes.start);
+        }
+        if (i === to - 1) {
+          editor.addLineClass(line, 'background', classes.end);
+        }
         state.marked.push(line);
       }
       // When the chunk is empty, make sure a horizontal line shows up
-      if (from == to) {
+      if (from === to) {
         state.marked.push(editor.addLineClass(from, 'background', classes.start));
       }
     }
-    var cls = type == DIFF_OP.DIFF_DELETE ? classes.del : classes.insert;
+    let cls = type === DIFF_OP.DIFF_DELETE ? classes.del : classes.insert;
     editor.operation(function() {
-      let edit = editor == self.edit;
+      let edit = editor === self.edit;
       clearMarks(editor, state.marked, classes);
       highlightChars(editor, diff, state, cls);
       for (let c of self.chunks) {
@@ -292,18 +295,11 @@ class DiffView {
 }
 
 
-function getOffsets(editor: CodeMirror.Editor, around) {
-  var bot = around.after;
-  if (bot == null) bot = editor.getDoc().lastLine() + 1;
-  return {top: editor.heightAtLine(around.before || 0, 'local'),
-          bot: editor.heightAtLine(bot, 'local')};
-}
-
 // Updating the marks for editor content
 
 function clearMarks(editor: CodeMirror.Editor, arr: any[], classes: DiffClasses) {
-  for (var i = 0; i < arr.length; ++i) {
-    var mark = arr[i];
+  for (let i = 0; i < arr.length; ++i) {
+    let mark = arr[i];
     if ('clear' in mark) {
       mark.clear();
     } else if (mark.parent) {
@@ -316,9 +312,9 @@ function clearMarks(editor: CodeMirror.Editor, arr: any[], classes: DiffClasses)
 }
 
 function highlightChars(editor: CodeMirror.Editor, ranges: DiffRangePos[],
-      state: any, cls: string) {
+                        state: any, cls: string) {
   let doc = editor.getDoc();
-  for (var r of ranges) {
+  for (let r of ranges) {
     state.marked.push(doc.markText(r.from, r.to, {className: cls}));
   }
 }
@@ -328,14 +324,18 @@ function highlightChars(editor: CodeMirror.Editor, ranges: DiffRangePos[],
 
 
 function getMatchingOrigLine(editLine: number, chunks: Chunk[]): number {
-  var editStart = 0, origStart = 0;
+  let editStart = 0, origStart = 0;
   // Start values correspond to either the start of the chunk,
   // or the start of a preceding unmodified part before the chunk.
   // It is the difference between these two that is interesting.
-  for (var i = 0; i < chunks.length; i++) {
-    var chunk = chunks[i];
-    if (chunk.editTo > editLine && chunk.editFrom <= editLine) return null;
-    if (chunk.editFrom > editLine) break;
+  for (let i = 0; i < chunks.length; i++) {
+    let chunk = chunks[i];
+    if (chunk.editTo > editLine && chunk.editFrom <= editLine) {
+      return null;
+    }
+    if (chunk.editFrom > editLine) {
+      break;
+    }
     editStart = chunk.editTo;
     origStart = chunk.origTo;
   }
@@ -350,14 +350,14 @@ function getMatchingOrigLine(editLine: number, chunks: Chunk[]): number {
  *   algined line #2 ..., etc.]
  */
 function findAlignedLines(dvs: DiffView[]): number[][] {
-  var linesToAlign: number[][] = [];
+  let linesToAlign: number[][] = [];
 
   // First fill directly from first DiffView
   let dv = dvs[0];
   let others = dvs.slice(1);
-  for (var i = 0; i < dv.chunks.length; i++) {
-    var chunk = dv.chunks[i];
-    var lines = [chunk.editTo, chunk.origTo];
+  for (let i = 0; i < dv.chunks.length; i++) {
+    let chunk = dv.chunks[i];
+    let lines = [chunk.editTo, chunk.origTo];
     for (let o of others) {
       lines.push(getMatchingOrigLine(chunk.editTo, o.chunks));
     }
@@ -365,12 +365,12 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
   }
   // Then fill any chunks from remaining DiffView, which are not already added
   for (let o = 0; o < others.length; o++) {
-    for (var i = 0; i < others[o].chunks.length; i++) {
-      var chunk = others[o].chunks[i];
+    for (let i = 0; i < others[o].chunks.length; i++) {
+      let chunk = others[o].chunks[i];
       // Check agains existing matches to see if already consumed:
       for (var j = 0; j < linesToAlign.length; j++) {
-        var align = linesToAlign[j];
-        if (align[0] == chunk.editTo) {
+        let align = linesToAlign[j];
+        if (align[0] === chunk.editTo) {
           // Chunk already consumed, continue to next chunk
           j = -1;
           break;
@@ -381,9 +381,9 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
         }
       }
       if (j > -1) {
-        var lines = [chunk.editTo, getMatchingOrigLine(chunk.editTo, dv.chunks)];
+        let lines = [chunk.editTo, getMatchingOrigLine(chunk.editTo, dv.chunks)];
         for (let k = 0; k < others.length; k++) {
-          if (k == o) {
+          if (k === o) {
             lines.push(chunk.origTo);
           } else {
             lines.push(getMatchingOrigLine(chunk.editTo, others[k].chunks));
@@ -398,17 +398,17 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
 
 
 function alignLines(cm: CodeMirror.Editor[], lines: number[], aligners): void {
-  var maxOffset = 0, offset = [];
-  for (var i = 0; i < cm.length; i++) {
+  let maxOffset = 0, offset = [];
+  for (let i = 0; i < cm.length; i++) {
     if (lines[i] !== null) {
-      var off = cm[i].heightAtLine(lines[i], 'local');
+      let off = cm[i].heightAtLine(lines[i], 'local');
       offset[i] = off;
       maxOffset = Math.max(maxOffset, off);
     }
   }
-  for (var i = 0; i < cm.length; i++) {
+  for (let i = 0; i < cm.length; i++) {
     if (lines[i] !== null) {
-      var diff = maxOffset - offset[i];
+      let diff = maxOffset - offset[i];
       if (diff > 1) {
         aligners.push(padAbove(cm[i], lines[i], diff));
       }
@@ -417,19 +417,20 @@ function alignLines(cm: CodeMirror.Editor[], lines: number[], aligners): void {
 }
 
 function padAbove(cm: CodeMirror.Editor, line: number, size: number): CodeMirror.LineWidget {
-  var above = true;
+  let above = true;
   if (line > cm.getDoc().lastLine()) {
     line--;
     above = false;
   }
-  var elt = document.createElement('div');
+  let elt = document.createElement('div');
   elt.className = 'CodeMirror-merge-spacer';
   elt.style.height = size + 'px'; elt.style.minWidth = '1px';
   return cm.addLineWidget(line, elt, {height: size, above: above});
 }
 
 
-export interface MergeViewEditorConfiguration extends CodeMirror.EditorConfiguration {
+export
+interface IMergeViewEditorConfiguration extends CodeMirror.EditorConfiguration {
   /**
    * When true stretches of unchanged text will be collapsed. When a number is given, this indicates the amount
    * of lines to leave visible around such stretches (which defaults to 2). Defaults to false.
@@ -472,18 +473,18 @@ export interface MergeViewEditorConfiguration extends CodeMirror.EditorConfigura
 // Merge view, containing 1 or 2 diff views.
 export
 class MergeView {
-  constructor(node: Node, options: MergeViewEditorConfiguration) {
+  constructor(node: Node, options: IMergeViewEditorConfiguration) {
     this.options = options;
-    var remote = options.remote;
-    var local = options.local;
-    var merged = options.merged;
+    let remote = options.remote;
+    let local = options.local;
+    let merged = options.merged;
 
-    var wrap = []
-    var left: DiffView = this.left = null;
-    var right: DiffView = this.right = null;
-    var merge: DiffView = this.merge = null
+    let wrap = [];
+    let left: DiffView = this.left = null;
+    let right: DiffView = this.right = null;
+    let merge: DiffView = this.merge = null;
     this.base = null;
-    var self = this;
+    let self = this;
     this.diffViews = [];
     this.aligners = [];
     options.value = (options.remote.base !== null ?
@@ -502,9 +503,9 @@ class MergeView {
      *     - Partial changes: Use base + right editor
      * */
 
-    var hasMerge = local !== null && merged !== null;
+    let hasMerge = local !== null && merged !== null;
     if (hasMerge) {
-      console.assert(remote.base == local.base);
+      console.assert(remote.base === local.base);
 
       if (local.remote === null) {
         // Local value was deleted
@@ -539,7 +540,7 @@ class MergeView {
       rightPane.className += ' CodeMirror-merge-pane-remote';
       wrap.push(rightPane);
 
-      wrap.push(elt('div', null, "CodeMirror-merge-clear", 'height: 0; clear: both;'));
+      wrap.push(elt('div', null, 'CodeMirror-merge-clear', 'height: 0; clear: both;'));
 
       merge = this.merge = new DiffView(merged, 'merge', this.alignChunks.bind(this));
       this.diffViews.push(merge);
@@ -547,6 +548,7 @@ class MergeView {
       mergePane.className += ' CodeMirror-merge-pane-final';
       wrap.push(merge.buildGap());
       wrap.push(mergePane);
+
       var panes = 3 + (showBase ? 1 : 0);
     } else {
       // Base always used
@@ -570,10 +572,10 @@ class MergeView {
         wrap.push(rightPane);
         var panes = 2;
       }
-      wrap.push(elt('div', null, "CodeMirror-merge-clear", 'height: 0; clear: both;'));
+      wrap.push(elt('div', null, 'CodeMirror-merge-clear', 'height: 0; clear: both;'));
     }
 
-    var wrapElt = this.wrap = node.appendChild(elt('div', wrap, 'CodeMirror-merge CodeMirror-merge-' + panes + 'pane'));
+    this.wrap = node.appendChild(elt('div', wrap, 'CodeMirror-merge CodeMirror-merge-' + panes + 'pane'));
     if (basePane !== undefined) {
       this.base = CodeMirror(basePane, copyObj(options));
     }
@@ -618,7 +620,7 @@ class MergeView {
       return; // Nothing to do
     }
     // Find matching lines
-    var linesToAlign = findAlignedLines(this.diffViews);
+    let linesToAlign = findAlignedLines(this.diffViews);
 
     // Function modifying DOM to perform alignment:
     let self: MergeView = this;
@@ -626,26 +628,27 @@ class MergeView {
 
       // Clear old aligners
       var aligners = self.aligners;
-      for (var i = 0; i < aligners.length; i++) {
+      for (let i = 0; i < aligners.length; i++) {
         aligners[i].clear();
       }
       aligners.length = 0;
 
       // Editors (order is important, so it matches
       // format of linesToAlign)
-      var cm: CodeMirror.Editor[] = [self.base], scroll = [];
+      let cm: CodeMirror.Editor[] = [self.base];
+      let scroll = [];
       for (let dv of self.diffViews) {
         cm.push(dv.orig);
       }
-      for (var i = 0; i < cm.length; i++) {
+      for (let i = 0; i < cm.length; i++) {
         scroll.push(cm[i].getScrollInfo().top);
       }
 
-      for (var ln = 0; ln < linesToAlign.length; ln++) {
+      for (let ln = 0; ln < linesToAlign.length; ln++) {
         alignLines(cm, linesToAlign[ln], aligners);
       }
 
-      for (var i = 0; i < cm.length; i++) {
+      for (let i = 0; i < cm.length; i++) {
         cm[i].scrollTo(null, scroll[i]);
       }
     };
@@ -654,13 +657,13 @@ class MergeView {
     // so set up nested operation calls.
     if (!this.base.curOp) {
       f = function(fn) {
-        return function() { self.base.operation(fn) }
+        return function() { self.base.operation(fn); };
       }(f);
     }
     for (let dv of this.diffViews) {
       if (!dv.orig.curOp) {
         f = function(fn) {
-          return function() { dv.orig.operation(fn) }
+          return function() { dv.orig.operation(fn); };
         }(f);
       }
     }
@@ -690,10 +693,10 @@ class MergeView {
 
 function collapseSingle(cm: CodeMirror.Editor, from: number, to: number): {mark: CodeMirror.TextMarker, clear: () => void} {
   cm.addLineClass(from, 'wrap', 'CodeMirror-merge-collapsed-line');
-  var widget = document.createElement('span');
+  let widget = document.createElement('span');
   widget.className = 'CodeMirror-merge-collapsed-widget';
   widget.title = 'Identical text collapsed. Click to expand.';
-  var mark = cm.getDoc().markText(
+  let mark = cm.getDoc().markText(
     Pos(from, 0), Pos(to - 1),
     {
       inclusiveLeft: true,
@@ -711,15 +714,15 @@ function collapseSingle(cm: CodeMirror.Editor, from: number, to: number): {mark:
 }
 
 function collapseStretch(size: number, editors: {line: number, cm: CodeMirror.Editor}[]): CodeMirror.TextMarker {
-  var marks = [];
+  let marks = [];
   function clear() {
-    for (var i = 0; i < marks.length; i++) {
+    for (let i = 0; i < marks.length; i++) {
       marks[i].clear();
     }
   }
-  for (var i = 0; i < editors.length; i++) {
-    var editor = editors[i];
-    var mark = collapseSingle(editor.cm, editor.line, editor.line + size);
+  for (let i = 0; i < editors.length; i++) {
+    let editor = editors[i];
+    let mark = collapseSingle(editor.cm, editor.line, editor.line + size);
     marks.push(mark);
     (mark.mark as any).on('clear', clear);
   }
@@ -727,10 +730,10 @@ function collapseStretch(size: number, editors: {line: number, cm: CodeMirror.Ed
 }
 
 function unclearNearChunks(dv: DiffView, margin: number, off: number, clear: boolean[]): void {
-  for (var i = 0; i < dv.chunks.length; i++) {
-    var chunk = dv.chunks[i];
-    for (var l = chunk.editFrom - margin; l < chunk.editTo + margin; l++) {
-      var pos = l + off;
+  for (let i = 0; i < dv.chunks.length; i++) {
+    let chunk = dv.chunks[i];
+    for (let l = chunk.editFrom - margin; l < chunk.editTo + margin; l++) {
+      let pos = l + off;
       if (pos >= 0 && pos < clear.length) {
         clear[pos] = false;
       }
@@ -740,9 +743,13 @@ function unclearNearChunks(dv: DiffView, margin: number, off: number, clear: boo
 
 function collapseIdenticalStretches(mv: MergeView, margin: boolean | number): void {
   // FIXME: Use all panes
-  if (typeof margin != 'number') margin = 2;
+  if (typeof margin != 'number') {
+    margin = 2;
+  }
   var clear = [], edit = mv.base, off = edit.getDoc().firstLine();
-  for (var l = off, e = edit.getDoc().lastLine(); l <= e; l++) clear.push(true);
+  for (let l = off, e = edit.getDoc().lastLine(); l <= e; l++) {
+    clear.push(true);
+  }
   if (mv.left) {
     unclearNearChunks(mv.left, margin as number, off, clear);
   }
@@ -750,16 +757,17 @@ function collapseIdenticalStretches(mv: MergeView, margin: boolean | number): vo
     unclearNearChunks(mv.right, margin as number, off, clear);
   }
   if (mv.merge) {
-    unclearNearChunks(mv.right, margin as number, off, clear);
+    unclearNearChunks(mv.merge, margin as number, off, clear);
   }
 
-  for (var i = 0; i < clear.length; i++) {
+  for (let i = 0; i < clear.length; i++) {
     if (clear[i]) {
-      var line = i + off;
+      let line = i + off;
       for (var size = 1; i < clear.length - 1 && clear[i + 1]; i++, size++) {
+        // Just finding size
       }
       if (size > margin) {
-        var editors = [{line: line, cm: edit}];
+        let editors = [{line: line, cm: edit}];
         if (mv.left) {
           editors.push({line: getMatchingOrigLine(line, mv.left.chunks),
             cm: mv.left.orig});
@@ -772,7 +780,7 @@ function collapseIdenticalStretches(mv: MergeView, margin: boolean | number): vo
           editors.push({line: getMatchingOrigLine(line, mv.merge.chunks),
             cm: mv.merge.orig});
         }
-        var mark = collapseStretch(size, editors);
+        let mark = collapseStretch(size, editors);
         if (mv.options.onCollapse) {
           mv.options.onCollapse(mv, line, size, mark);
         }
@@ -783,8 +791,8 @@ function collapseIdenticalStretches(mv: MergeView, margin: boolean | number): vo
 
 // General utilities
 
-function elt(tag: string, content?: string | HTMLElement[], className?: string, style?: string) {
-  var e = document.createElement(tag);
+function elt(tag: string, content?: string | HTMLElement[], className?: string, style?: string): HTMLElement {
+  let e = document.createElement(tag);
   if (className) {
     e.className = className;
   }
@@ -793,9 +801,8 @@ function elt(tag: string, content?: string | HTMLElement[], className?: string, 
   }
   if (typeof content == 'string') {
     e.appendChild(document.createTextNode(content as string));
-  }
-  else if (content) {
-    for (var i = 0; i < content.length; ++i) {
+  } else if (content) {
+    for (let i = 0; i < content.length; ++i) {
       e.appendChild((content as HTMLElement[])[i]);
     }
   }
@@ -803,21 +810,27 @@ function elt(tag: string, content?: string | HTMLElement[], className?: string, 
 }
 
 function clear(node: HTMLElement) {
-  for (var count = node.childNodes.length; count > 0; --count) {
+  for (let count = node.childNodes.length; count > 0; --count) {
     node.removeChild(node.firstChild);
   }
 }
 
 function copyObj(obj: Object, target?: Object) {
-  if (!target) target = {};
-  for (var prop in obj) if (obj.hasOwnProperty(prop)) target[prop] = obj[prop];
+  if (!target) {
+    target = {};
+  }
+  for (let prop in obj) {
+    if (obj.hasOwnProperty(prop)) {
+      target[prop] = obj[prop];
+    }
+  }
   return target;
 }
 
 function findPrevDiff(chunks: Chunk[], start: number, isOrig: boolean): number {
-  for (var i = chunks.length - 1; i >= 0; i--) {
-    var chunk = chunks[i];
-    var to = (isOrig ? chunk.origTo : chunk.editTo) - 1;
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    let chunk = chunks[i];
+    let to = (isOrig ? chunk.origTo : chunk.editTo) - 1;
     if (to < start) {
       return to;
     }
@@ -825,9 +838,9 @@ function findPrevDiff(chunks: Chunk[], start: number, isOrig: boolean): number {
 }
 
 function findNextDiff(chunks: Chunk[], start: number, isOrig: boolean): number {
-  for (var i = 0; i < chunks.length; i++) {
-    var chunk = chunks[i];
-    var from = (isOrig ? chunk.origFrom : chunk.editFrom);
+  for (let i = 0; i < chunks.length; i++) {
+    let chunk = chunks[i];
+    let from = (isOrig ? chunk.origFrom : chunk.editFrom);
     if (from > start) {
       return from;
     }
@@ -835,15 +848,18 @@ function findNextDiff(chunks: Chunk[], start: number, isOrig: boolean): number {
 }
 
 function goNearbyDiff(cm, dir): void | any {
-  var found = null, views = cm.state.diffViews, line = cm.getCursor().line;
-  if (views) for (var i = 0; i < views.length; i++) {
-    var dv = views[i], isOrig = cm == dv.orig;
-    var pos = dir < 0 ?
-      findPrevDiff(dv.chunks, line, isOrig) :
-      findNextDiff(dv.chunks, line, isOrig);
-    if (pos !== null && (found === null ||
-          (dir < 0 ? pos > found : pos < found))) {
-      found = pos;
+  let found = null, views = cm.state.diffViews, line = cm.getCursor().line;
+  if (views) {
+    for (let i = 0; i < views.length; i++) {
+      let dv = views[i];
+      let isOrig = cm === dv.orig;
+      let pos = dir < 0 ?
+        findPrevDiff(dv.chunks, line, isOrig) :
+        findNextDiff(dv.chunks, line, isOrig);
+      if (pos !== null && (found === null ||
+            (dir < 0 ? pos > found : pos < found))) {
+        found = pos;
+      }
     }
   }
   if (found !== null) {
@@ -855,7 +871,7 @@ function goNearbyDiff(cm, dir): void | any {
 
 CodeMirror.commands.goNextDiff = function(cm) {
   return goNearbyDiff(cm, 1);
-}
+};
 CodeMirror.commands.goPrevDiff = function(cm) {
   return goNearbyDiff(cm, -1);
-}
+};

@@ -176,9 +176,9 @@ function opPatch(key: string | number, diff: IDiffEntry[]): IDiffPatch {
  *
  * Returns the first found entry, or null if not entry was found.
  */
-export function getDiffKey(diff: IDiffEntry[], key:string) : IDiffEntry[] {
-  for (var i=0; i<diff.length; ++i) {
-    if (diff[i].key == key) {
+export function getDiffKey(diff: IDiffEntry[], key: string) : IDiffEntry[] {
+  for (let i=0; i < diff.length; ++i) {
+    if (diff[i].key === key) {
       return (diff[i] as IDiffPatch).diff;
     }
   }
@@ -274,7 +274,7 @@ function findLineNumber(nlPos: number[], index: number): number {
   if (nlPos.length === 0) {
     return 0;
   }
-  var lineNo: number = null;
+  let lineNo: number = null;
   nlPos.some(function(el, i) {
     if (el >= index) {
       lineNo = i;
@@ -304,12 +304,12 @@ export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
   for (let r of raws) {
     // First `from` position:
     let line = findLineNumber(adIdx, r.from);
-    let lineStartIdx = line > 0 ? adIdx[line-1] + 1 : 0;
+    let lineStartIdx = line > 0 ? adIdx[line - 1] + 1 : 0;
     let from = CodeMirror.Pos(line, r.from - lineStartIdx);
 
     // Then `to` position:
     line = findLineNumber(adIdx, r.to - 1);  // `to` is non-inclusive
-    lineStartIdx = line > 0 ? adIdx[line-1] + 1 : 0;
+    lineStartIdx = line > 0 ? adIdx[line - 1] + 1 : 0;
     let to = CodeMirror.Pos(line, r.to - lineStartIdx);
 
     // Finally chunking hints:
@@ -325,7 +325,7 @@ export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
         !valueIn(r.from - 1, adIdx) &&
         !valueIn(r.to, adIdx)
       )
-    )
+    );
     let pos = new DiffRangePos(from, to, chunkFirstLine, endsOnNewline);
     result.push(pos);
   }

@@ -162,7 +162,7 @@ export class StringDiffModel implements IStringDiffModel {
    */
   constructor(
         public base: string,
-        public remote:string,
+        public remote: string,
         additions: DiffRangeRaw[],
         deletions: DiffRangeRaw[],
         collapsible?: boolean,
@@ -192,21 +192,22 @@ export class StringDiffModel implements IStringDiffModel {
    * Uses Chunk.inOrig/inEdit to determine diff entry overlap.
    */
   getChunks(): Chunk[] {
-    var chunks: Chunk[] = [];
-    var startEdit = 0, startOrig = 0, editOffset = 0;
-    var edit = CodeMirror.Pos(0, 0), orig = CodeMirror.Pos(0, 0);
+    let chunks: Chunk[] = [];
+    let startEdit = 0, startOrig = 0, editOffset = 0;
+    let edit = CodeMirror.Pos(0, 0), orig = CodeMirror.Pos(0, 0);
     let ia = 0, id = 0;
 
     let current: Chunk = null;
     let isAddition: boolean = null;
     let range: DiffRangePos = null;
-    for (;;) {
+    for (; ; ) {
       // Figure out which element to take next
       if (ia < this.additions.length) {
         if (id < this.deletions.length) {
-          let ra = this.additions[ia], rd = this.deletions[id];
+          let ra = this.additions[ia];
+          let rd = this.deletions[id];
           if (ra.from.line < rd.from.line - editOffset ||
-                (ra.from.line == rd.from.line - editOffset &&
+                (ra.from.line === rd.from.line - editOffset &&
                  ra.from.ch <= rd.from.ch)) {
             // TODO: Character editOffset should also be used
             isAddition = true;
@@ -295,8 +296,7 @@ export class StringDiffModel implements IStringDiffModel {
   }
 
   get unchanged(): boolean {
-    return this.base == this.remote;
-    //return !this.additions && !this.deletions;
+    return this.base === this.remote;
   }
 
   get added(): boolean {
@@ -327,9 +327,9 @@ export class StringDiffModel implements IStringDiffModel {
  */
 export function createPatchDiffModel(base: any, diff: IDiffEntry[]) : StringDiffModel {
   console.assert(!!diff, 'Patch model needs diff.');
-  var base_str = (typeof base == 'string') ? base as string : stringify(base);
+  let baseStr = (typeof base === 'string') ? base as string : stringify(base);
   let out = patchStringified(base, diff);
-  return new StringDiffModel(base_str, out.remote, out.additions, out.deletions);
+  return new StringDiffModel(baseStr, out.remote, out.additions, out.deletions);
 }
 
 /**
@@ -340,26 +340,26 @@ export function createPatchDiffModel(base: any, diff: IDiffEntry[]) : StringDiff
  * unchanged content.
  */
 export function createDirectDiffModel(base: any, remote: any): StringDiffModel {
-  var base_str = (typeof base == 'string') ?
+  let baseStr = (typeof base === 'string') ?
     base as string : stringify(base);
-  var remote_str = (typeof remote == 'string') ?
+  let remoteStr = (typeof remote === 'string') ?
     remote as string : stringify(remote);
-  var additions: DiffRangeRaw[] = [];
-  var deletions: DiffRangeRaw[] = []
+  let additions: DiffRangeRaw[] = [];
+  let deletions: DiffRangeRaw[] = [];
 
   if (base === null) {
     // Added cell
-    base_str = null;
-    additions.push(new DiffRangeRaw(0, remote_str.length));
+    baseStr = null;
+    additions.push(new DiffRangeRaw(0, remoteStr.length));
   } else if (remote === null) {
     // Deleted cell
-    remote_str = null;
-    deletions.push(new DiffRangeRaw(0, base_str.length));
-  } else if (remote_str !== base_str) {
+    remoteStr = null;
+    deletions.push(new DiffRangeRaw(0, baseStr.length));
+  } else if (remoteStr !== baseStr) {
     throw 'Invalid arguments to createDirectDiffModel().' +
-      'Either base or remote should be null, or they should be equal!'
+      'Either base or remote should be null, or they should be equal!';
   }
-  return new StringDiffModel(base_str, remote_str, additions, deletions);
+  return new StringDiffModel(baseStr, remoteStr, additions, deletions);
 }
 
 
@@ -367,11 +367,11 @@ export function createDirectDiffModel(base: any, remote: any): StringDiffModel {
 /**
  * Assign MIME type to an IStringDiffModel based on the cell type.
  *
- * The parameter nbMimetype is the MIME type set for the entire notebook, and is used as the
- * MIME type for code cells.
+ * The parameter nbMimetype is the MIME type set for the entire notebook, and is
+ * used as the MIME type for code cells.
  */
 function setMimetypeFromCellType(model: IStringDiffModel, cell: nbformat.ICell,
-      nbMimetype: string) {
+                                 nbMimetype: string) {
   let cellType = cell.cell_type;
   if (cellType === 'code') {
     model.mimetype = nbMimetype;
@@ -433,7 +433,7 @@ export class OutputDiffModel implements IDiffModel {
   hasMimeType(mimetype: string): string {
     let t = this.base ? this.base.output_type : this.remote.output_type;
     if (t === 'stream' &&
-          mimetype == 'application/vnd.jupyter.console-text') {
+          mimetype === 'application/vnd.jupyter.console-text') {
       return 'text';
     } else if (t === 'execute_result' || t === 'display_data') {
       let data = this.base ? (this.base as nbformat.IExecuteResult).data :
@@ -472,16 +472,18 @@ export class OutputDiffModel implements IDiffModel {
    */
   stringify(key?: string) : IStringDiffModel {
     let getMemberByPath = function(obj: any, key: string, f?: (obj: any, key: string) => any) {
-      if (!obj) return obj;
+      if (!obj) {
+        return obj;
+      }
       let i = key.indexOf('.');
       if (i >= 0) {
         console.assert(i < key.length);
         if (f) {
           return getMemberByPath(
-            f(obj, key.slice(0, i)), key.slice(i+1), f);
+            f(obj, key.slice(0, i)), key.slice(i + 1), f);
         }
         return getMemberByPath(
-          obj[key.slice(0, i)], key.slice(i+1), f);
+          obj[key.slice(0, i)], key.slice(i + 1), f);
       } else if (f) {
         return f(obj, key);
       }
@@ -529,7 +531,7 @@ export class OutputDiffModel implements IDiffModel {
  */
 export class CellDiffModel {
   constructor(source: IDiffModel, metadata: IDiffModel,
-        outputs: IDiffModel[], cellType: string) {
+              outputs: IDiffModel[], cellType: string) {
     this.source = source;
     this.metadata = metadata;
     this.outputs = outputs;
@@ -592,8 +594,8 @@ export class CellDiffModel {
   }
 }
 
-export function createPatchedCellDiffModel(base: nbformat.ICell, diff: IDiffEntry[],
-      nbMimetype: string): CellDiffModel {
+export function createPatchedCellDiffModel(
+    base: nbformat.ICell, diff: IDiffEntry[], nbMimetype: string): CellDiffModel {
   let source: IDiffModel = null;
   let metadata: IDiffModel = null;
   let outputs: IDiffModel[] = null;
@@ -610,7 +612,7 @@ export function createPatchedCellDiffModel(base: nbformat.ICell, diff: IDiffEntr
   if (base.metadata !== undefined) {
     metadata = subDiff ?
       createPatchDiffModel(base.metadata, subDiff) :
-      createDirectDiffModel(base.metadata, base.metadata)
+      createDirectDiffModel(base.metadata, base.metadata);
   }
 
   if (base.cell_type === 'code' && (base as nbformat.ICodeCell).outputs) {
@@ -620,8 +622,8 @@ export function createPatchedCellDiffModel(base: nbformat.ICell, diff: IDiffEntr
   return new CellDiffModel(source, metadata, outputs, base.cell_type);
 }
 
-export function createUnchangedCellDiffModel(base: nbformat.ICell,
-        nbMimetype: string): CellDiffModel {
+export function createUnchangedCellDiffModel(
+      base: nbformat.ICell, nbMimetype: string): CellDiffModel {
   let metadata: IDiffModel = null;
   let outputs: IDiffModel[] = null;
 
@@ -637,8 +639,8 @@ export function createUnchangedCellDiffModel(base: nbformat.ICell,
   return new CellDiffModel(source, metadata, outputs, base.cell_type);
 }
 
-export function createAddedCellDiffModel(remote: nbformat.ICell,
-      nbMimetype: string): CellDiffModel {
+export function createAddedCellDiffModel(
+      remote: nbformat.ICell, nbMimetype: string): CellDiffModel {
   let metadata: IDiffModel = null;
   let outputs: IDiffModel[] = null;
 
@@ -654,8 +656,8 @@ export function createAddedCellDiffModel(remote: nbformat.ICell,
   return new CellDiffModel(source, metadata, outputs, remote.cell_type);
 }
 
-export function createDeletedCellDiffModel(base: nbformat.ICell,
-      nbMimetype: string): CellDiffModel {
+export function createDeletedCellDiffModel(
+      base: nbformat.ICell, nbMimetype: string): CellDiffModel {
   let source: IDiffModel = null;
   let metadata: IDiffModel = null;
   let outputs: IDiffModel[] = null;
@@ -673,7 +675,7 @@ export function createDeletedCellDiffModel(base: nbformat.ICell,
 
 
 function makeOutputModels(base: nbformat.IOutput[], remote: nbformat.IOutput[],
-      diff?: IDiffEntry[]) : IDiffModel[] {
+                          diff?: IDiffEntry[]) : IDiffModel[] {
   let models: IDiffModel[] = [];
   if (remote === null && !diff) {
     // Cell deleted
@@ -770,36 +772,34 @@ export class NotebookDiffModel {
 
     // Build cell diff models. Follows similar logic to patching code:
     this.cells = [];
-    var take = 0;
-    var skip = 0;
-    for (var e of getDiffKey(diff, 'cells') || []) {
-      var op = e.op;
-      var index = e.key as number;
+    let take = 0;
+    let skip = 0;
+    for (let e of getDiffKey(diff, 'cells') || []) {
+      let op = e.op;
+      let index = e.key as number;
 
       // diff is sorted on index, so take any preceding cells as unchanged:
-      for (var i=take; i < index; i++) {
+      for (let i=take; i < index; i++) {
         this.cells.push(createUnchangedCellDiffModel(
           base.cells[i], this.mimetype));
       }
 
       // Process according to diff type:
-      if (op == DiffOp.SEQINSERT) {
+      if (op === DiffOp.SEQINSERT) {
         // One or more inserted/added cells:
-        for (var e_i of (e as IDiffAddRange).valuelist) {
+        for (let ei of (e as IDiffAddRange).valuelist) {
           this.cells.push(createAddedCellDiffModel(
-            e_i as nbformat.ICell, this.mimetype));
+            ei as nbformat.ICell, this.mimetype));
         }
         skip = 0;
-      }
-      else if (op == DiffOp.SEQDELETE) {
+      } else if (op === DiffOp.SEQDELETE) {
         // One or more removed/deleted cells:
         skip = (e as IDiffRemoveRange).length;
-        for (var i=index; i < index + skip; i++) {
+        for (let i=index; i < index + skip; i++) {
           this.cells.push(createDeletedCellDiffModel(
             base.cells[i], this.mimetype));
         }
-      }
-      else if (op == DiffOp.PATCH) {
+      } else if (op === DiffOp.PATCH) {
         // A cell has changed:
         this.cells.push(createPatchedCellDiffModel(
           base.cells[index], (e as IDiffPatch).diff, this.mimetype));
@@ -812,7 +812,7 @@ export class NotebookDiffModel {
       take = Math.max(take, index + skip);
     }
     // Take unchanged values at end
-    for (var i=take; i < base.cells.length; i++) {
+    for (let i=take; i < base.cells.length; i++) {
       this.cells.push(createUnchangedCellDiffModel(
         base.cells[i], this.mimetype));
     }

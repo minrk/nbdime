@@ -88,7 +88,7 @@ export class CellMergeModel {
    * Model of the remote diff vs. base
    */
   get remote(): CellDiffModel {
-    if (!this._remote) {
+    if (this._remote === undefined) {
       let diff = buildDiffs(this.base, this.decisions, 'remote');
       this._remote = createPatchedCellDiffModel(this.base, diff, this.mimetype);
     }
@@ -99,7 +99,7 @@ export class CellMergeModel {
    * Model of the diff of the merged cell vs. base
    */
   get merged(): CellDiffModel {
-    if (!this._merged) {
+    if (this._merged === undefined) {
       let diff = buildDiffs(this.base, this.decisions, 'merged');
       this._merged = createPatchedCellDiffModel(this.base, diff, this.mimetype);
     }
@@ -175,7 +175,9 @@ export class CellMergeModel {
     console.assert(!this.cellLevel,
                    'Cannot have multiple cell decisions on one cell!');
     this.cellLevel = true;  // We set this to distinguish case 3 from normal
-    if (md.local_diff === null) {
+    let ld = md.local_diff !== null && md.local_diff.length !== 0;
+    let rd = md.remote_diff !== null && md.remote_diff.length !== 0;
+    if (!ld) {
       // 1. or 2.:
       this._local = null;
       console.assert(md.remote_diff.length === 1);
@@ -191,7 +193,7 @@ export class CellMergeModel {
         this._merged = createDeletedCellDiffModel(this.base, this.mimetype);
         this.deleteCell = valueIn(md.action, ['remote', 'either']);
       }
-    } else if (md.remote_diff === null) {
+    } else if (!rd) {
       // 1. or 2.:
       this._remote = null;
       console.assert(md.local_diff.length === 1);
@@ -208,7 +210,7 @@ export class CellMergeModel {
         this.deleteCell = valueIn(md.action, ['local', 'either']);
       }
     } else {
-      console.assert(md.local_diff !== null && md.remote_diff !== null);
+      console.assert(ld && rd);
       console.assert(md.local_diff.length === 1 && md.remote_diff.length === 1);
       // 3. or 4.
       if (md.local_diff[0].op === md.remote_diff[0].op) {

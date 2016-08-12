@@ -345,8 +345,10 @@ function buildDiffs(base: any, decisions: IMergeDecision[], which: string): IDif
       sortedPaths.push(strPath);
     }
   }
-  tree['/'] = {'diff': [], 'path': []};
-  sortedPaths.push('/');
+  if (!tree.hasOwnProperty('/')) {
+    tree['/'] = {'diff': [], 'path': []};
+    sortedPaths.push('/');
+  }
 
   // Tree is constructed, now join all branches at diverging points (joints)
   return _mergeTree(tree, sortedPaths);

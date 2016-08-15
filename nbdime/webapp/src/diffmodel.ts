@@ -8,8 +8,12 @@ import {
 
 import {
   DiffOp, IDiffEntry, IDiffAddRange, IDiffRemoveRange, IDiffPatch,
-  getDiffKey, DiffRangeRaw, DiffRangePos, raw2Pos, ChunkSource
+  getDiffKey, DiffRangeRaw, DiffRangePos, raw2Pos
 } from './diffutil';
+
+import {
+  ChunkSource
+} from './mergedecision';
 
 import {
   patchStringified, stringify, patch
@@ -266,7 +270,7 @@ export class StringDiffModel implements IStringDiffModel {
                 range.to.line + endOffset + linediff);
             current.editTo = Math.max(current.editTo,
                 range.to.line + endOffset + editOffset);
-            console.assert(current.source === range.source);
+            console.assert(current.source.action === range.source.action);
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);
@@ -278,7 +282,7 @@ export class StringDiffModel implements IStringDiffModel {
                 range.to.line + endOffset - editOffset);
             current.editTo = Math.max(current.editTo,
                 range.to.line + endOffset + linediff);
-            console.assert(current.source === range.source);
+            console.assert(current.source.action === range.source.action);
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);

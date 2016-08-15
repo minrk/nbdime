@@ -59,35 +59,16 @@
   line-height: 1;
 }
 
-.CodeMirror-merge-copybuttons-left, .CodeMirror-merge-copybuttons-right {
-  position: absolute;
-  left: 0; top: 0;
-  right: 0; bottom: 0;
-  line-height: 1;
-}
-
-.CodeMirror-merge-copy {
-  position: absolute;
-  cursor: pointer;
-  color: #44c;
-  z-index: 3;
-}
-
-.CodeMirror-merge-copy-reverse {
-  position: absolute;
-  cursor: pointer;
-  color: #44c;
-}
-
-.CodeMirror-merge-copybuttons-left .CodeMirror-merge-copy { left: 2px; }
-.CodeMirror-merge-copybuttons-right .CodeMirror-merge-copy { right: 2px; }
-
 .CodeMirror-merge-r-inserted, .CodeMirror-merge-l-inserted {
     background-color: #a6f3a6;
 }
 
 .CodeMirror-merge-r-deleted, .CodeMirror-merge-l-deleted {
     background-color: #f8cbcb;
+}
+
+.jp-Merge-gutter-buttons {
+  width: 16px;
 }
 
 .CodeMirror-merge-r-chunk { background: #ffffe0; }

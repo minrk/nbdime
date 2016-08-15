@@ -84,21 +84,9 @@ class DecisionStringDiffModel extends StringDiffModel {
     return this._outdated;
   }
 
-  decide(chunk: Chunk, action: string, customDiff?: IDiffEntry[]): void {
-    // First, figure out which decision the chunk corresponds to
-    let md = this.decisions[0];  // FIXME: Placehodler
-    if (md.action !== action || action === 'custom' && customDiff) {
-      md.action = action;
-      if (action === 'custom') {
-        md.custom_diff = customDiff;
-      }
-      this.invalidate();
-    }
-  }
-
   protected _update(): void {
     this._outdated = false;
-    let diff = buildDiffs(this.base, this.decisions, 'merged');
+    let diff = buildDiffs(this.base, this.decisions, 'merged', 1);
     let out = patchStringified(this.base, diff);
     this._additions = raw2Pos(out.additions, out.remote);
     this._deletions = raw2Pos(out.deletions, this.base);
@@ -140,7 +128,7 @@ function createPatchedCellDecisionDiffModel(
     base.source, filterDecisions(decisions, ['source']));
   setMimetypeFromCellType(source as IStringDiffModel, base, mimetype);
 
-  let metadataDec = filterDecisions(decisions, ['source']);
+  let metadataDec = filterDecisions(decisions, ['metadata']);
   if (metadataDec.length > 0) {
     metadata = new DecisionStringDiffModel(
       base.metadata, metadataDec);
@@ -203,6 +191,7 @@ export class CellMergeModel {
   get local(): CellDiffModel {
     if (this._local === undefined) {
       // We're builiding from decisions
+      this._finalizeDecisions();
       let diff = buildDiffs(this.base, this.decisions, 'local');
       this._local = createPatchedCellDiffModel(this.base, diff, this.mimetype);
     }
@@ -214,6 +203,7 @@ export class CellMergeModel {
    */
   get remote(): CellDiffModel {
     if (this._remote === undefined) {
+      this._finalizeDecisions();
       let diff = buildDiffs(this.base, this.decisions, 'remote');
       this._remote = createPatchedCellDiffModel(this.base, diff, this.mimetype);
     }
@@ -225,6 +215,7 @@ export class CellMergeModel {
    */
   get merged(): CellDiffModel {
     if (this._merged === undefined) {
+      this._finalizeDecisions();
       this._merged = createPatchedCellDecisionDiffModel(
         this.base, this.decisions, this.mimetype);
     }
@@ -262,11 +253,28 @@ export class CellMergeModel {
     }
   }
 
+
+  protected _finalizeDecisions(): void {
+    if (!this._finalized) {
+      for (let md of this.decisions) {
+        if (md.action === 'either') {
+          labelSource(md.local_diff, {'decision': md, 'action': 'either'});
+          labelSource(md.remote_diff, {'decision': md, 'action': 'either'});
+        } else {
+          labelSource(md.local_diff, {'decision': md, 'action': 'local'});
+          labelSource(md.remote_diff, {'decision': md, 'action': 'remote'});
+        }
+        labelSource(md.custom_diff, {'decision': md, 'action': 'custom'});
+      }
+      this._finalized = true;
+    }
+  }
+
   /**
    * Split a decision with a patch on one side into a set of new, one-sided
    * patch opertations. Useful to split a cell deletion vs patch decision.
    */
-  protected splitPatch(md: IMergeDecision, patch: IDiffPatch, local: boolean): IMergeDecision[] {
+  protected _splitPatch(md: IMergeDecision, patch: IDiffPatch, local: boolean): IMergeDecision[] {
     // Split patch on source, metadata and outputs, and make new decisions
     let diff = patch.diff;
     let out: IMergeDecision[] = [];
@@ -366,13 +374,13 @@ export class CellMergeModel {
           this._local = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'local';
           // The patch op will be on cell level. Split it on sub keys!
-          newDecisions = newDecisions.concat(this.splitPatch(
+          newDecisions = newDecisions.concat(this._splitPatch(
             md, md.remote_diff[0] as IDiffPatch, false));
         } else {
           this._remote = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'remote';
           // The patch op will be on cell level. Split it on sub keys!
-          newDecisions = newDecisions.concat(this.splitPatch(
+          newDecisions = newDecisions.concat(this._splitPatch(
             md, md.local_diff[0] as IDiffPatch, true));
         }
       }
@@ -383,6 +391,8 @@ export class CellMergeModel {
   protected _local: CellDiffModel;
   protected _remote: CellDiffModel;
   protected _merged: CellDiffModel;
+
+  protected _finalized: boolean = false;
 }
 
 
@@ -674,13 +684,13 @@ class NotebookMergeModel {
     resolveCommonPaths(mergeDecisions);
     for (let md of mergeDecisions) {
       if (md.action === 'either') {
-        labelSource(md.local_diff, 'either');
-        labelSource(md.remote_diff, 'either');
+        labelSource(md.local_diff, {'decision': md, 'action': 'either'});
+        labelSource(md.remote_diff, {'decision': md, 'action': 'either'});
       } else {
-        labelSource(md.local_diff, 'local');
-        labelSource(md.remote_diff, 'remote');
+        labelSource(md.local_diff, {'decision': md, 'action': 'local'});
+        labelSource(md.remote_diff, {'decision': md, 'action': 'remote'});
       }
-      labelSource(md.custom_diff, 'custom');
+      labelSource(md.custom_diff, {'decision': md, 'action': 'custom'});
     }
     return mergeDecisions;
   }

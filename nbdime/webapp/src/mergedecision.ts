@@ -10,7 +10,6 @@
 
 import {
   IDiffEntry, IDiffPatch, opRemove, opReplace, opRemoveRange, opPatch,
-  ChunkSource
 } from './diffutil';
 
 import {
@@ -23,6 +22,12 @@ import {
 
 export
 type DecisionPath = (string | number)[];
+
+export
+type ChunkSource = {
+  decision: IMergeDecision;
+  action: 'local' | 'remote' | 'either' | 'custom'
+};
 
 export
 interface IMergeDecision {
@@ -332,20 +337,26 @@ function _mergeTree(tree: DiffTree, sortedPaths: string[]): IDiffEntry[] {
 /**
  * Builds a diff for direct application on base. The `which` argument either
  * selects the 'local', 'remote' or 'merged' diffs.
+ *
+ * By supplying `stripPath`, a given number of paths can be removed from the
+ * decisions common_path before applying.
  */
 export
-function buildDiffs(base: any, decisions: IMergeDecision[], which: string): IDiffEntry[] {
+function buildDiffs(base: any, decisions: IMergeDecision[], which: string,
+                    stripPath?: number): IDiffEntry[] {
   let tree: DiffTree = {};
   let sortedPaths = [];
   let local = which === 'local';
   let merged = which === 'merged';
+  stripPath = stripPath || 0;
   if (!local && !merged) {
     console.assert(which === 'remote');
   }
   for (let md of decisions) {
     let subdiffs: IDiffEntry[] = null;
+    let path = md.common_path.slice(stripPath);
     if (merged) {
-      let sub = _getSubObject(base, md.common_path);
+      let sub = _getSubObject(base, path);
       subdiffs = resolveAction(sub, md);
     } else {
       subdiffs = local ? md.local_diff : md.remote_diff;
@@ -353,13 +364,13 @@ function buildDiffs(base: any, decisions: IMergeDecision[], which: string): IDif
         subdiffs = [];
       }
     }
-    let strPath = '/' + md.common_path.join('/');
+    let strPath = '/' + path.join('/');
     if (tree.hasOwnProperty(strPath)) {
       // Existing tree entry, simply add diffs to it
       tree[strPath].diff = tree[strPath].diff.concat(subdiffs);
     } else {
       // Make new entry in tree
-      tree[strPath] = {'diff': subdiffs, 'path': md.common_path};
+      tree[strPath] = {'diff': subdiffs, 'path': path};
       sortedPaths.push(strPath);
     }
   }
@@ -402,7 +413,6 @@ function filterDecisions(decisions: IMergeDecision[], path: DecisionPath) {
   let ret: IMergeDecision[] = [];
   for (let md of decisions) {
     if (isPrefixArray(path, md.common_path)) {
-      md.common_path.splice(0, path.length);
       ret.push(md);
     }
   }

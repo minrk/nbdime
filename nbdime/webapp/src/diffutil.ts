@@ -8,6 +8,10 @@ import {
   valueIn
 } from './util';
 
+import {
+  ChunkSource
+} from './mergedecision';
+
 /**
  * The indentation to use for JSON stringify.
  */
@@ -49,10 +53,6 @@ namespace DiffOp {
    */
   export const SEQDELETE = 'removerange';
 }
-
-
-export
-type ChunkSource = 'local' | 'remote' | 'either' | 'custom';
 
 
 /**

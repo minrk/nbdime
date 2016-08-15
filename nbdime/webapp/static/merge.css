@@ -23,11 +23,11 @@
 }
 
 .CodeMirror-merge-pane-local,.CodeMirror-merge-pane-remote,.CodeMirror-merge-pane-base {
-  width: 30%;
+  width: 33%;
 }
 
 .CodeMirror-merge-pane-final {
-  width: 940%;
+  width: 100%;
   border-top: solid #ddd 1px;
 }
 
@@ -54,22 +54,6 @@
 .CodeMirror-merge-pane-base .CodeMirror-line .CodeMirror-merge-r-deleted {
   background-color: initial;
   color: #b00
-}
-
-.jp-Notebook-merge .CodeMirror-merge-gap {
-  height: 50%;
-  width: 6%;
-}
-
-.CodeMirror-merge-clear + .CodeMirror-merge-gap {
-  border-top: solid #ddd 1px;
-}
-
-.jp-Notebook-merge .CodeMirror-merge-pane-remote,
-.jp-Notebook-merge .CodeMirror-merge-pane-base,
-.jp-Notebook-merge .CodeMirror-merge-pane-final {
-  position: relative;
-  left: 6%;
 }
 
 .jp-Merge-oneway-local,.jp-Merge-oneway-remote {

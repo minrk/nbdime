@@ -43,10 +43,10 @@ export type StringifiedPatchResult = {
  * Patch a base JSON object according to diff. Returns the patched object.
  */
 export function patch(base: (string | Array<any> | any), diff: IDiffEntry[]) : (string | Array<any> | any) {
-  if (typeof base == 'string') {
+  if (typeof base === 'string') {
     return patchString(base, diff, 0, false).remote;
   } else if (base instanceof Array) {
-    return patchSequence(base, diff)
+    return patchSequence(base, diff);
   } else {
     return patchObject(base, diff);
   }
@@ -72,7 +72,7 @@ function patchSequence(base: Array<any>, diff: IDiffEntry[]): Array<any> {
     if (op === DiffOp.SEQINSERT) {
       // Extend with new values directly
       patched = patched.concat(
-        (e as IDiffAddRange).valuelist as Array<any>)
+        (e as IDiffAddRange).valuelist as Array<any>);
       skip = 0;
     } else if (op === DiffOp.SEQDELETE) {
       // Delete a number of values by skipping
@@ -117,7 +117,7 @@ function patchObject(base: Object, diff: IDiffEntry[]) : Object {
         patched[key] = (e as IDiffAdd).value;
       } else if (op === DiffOp.PATCH) {
         keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
-        patched[key] = patch(base[key], (e as IDiffPatch).diff)
+        patched[key] = patch(base[key], (e as IDiffPatch).diff);
       } else {
         throw 'Invalid op ' + op;
       }
@@ -146,12 +146,12 @@ export function patchStringified(base: (string | Array<any> | any), diff: IDiffE
   if (level === undefined) {
     level = 0;
   }
-  if (typeof base == 'string') {
+  if (typeof base === 'string') {
     // Only stringify if level > 0
     let stringifyPatch = level > 0;
     return patchString(base, diff, level, stringifyPatch);
   } else if (base instanceof Array) {
-    return patchStringifiedList(base, diff, level)
+    return patchStringifiedList(base, diff, level);
   } else {
     return patchStringifiedObject(base, diff, level);
   }
@@ -162,12 +162,12 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
     var level = 0;
   }
   let map: { [key: string]: any; } = base;
-  var remote = '';
-  var additions: DiffRangeRaw[] = [];
-  var deletions: DiffRangeRaw[] = [];
+  let remote = '';
+  let additions: DiffRangeRaw[] = [];
+  let deletions: DiffRangeRaw[] = [];
   let postfix = ',\n';
 
-  var baseIndex = 0;
+  let baseIndex = 0;
 
   // Short-circuit if diff is empty
   if (diff === null || diff === undefined) {
@@ -175,21 +175,21 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
   }
 
   // Object is dict. As diff keys should be unique, create map for easy processing
-  var ops: { [key: string]: IDiffEntry} = {};
-  var op_keys : string[] = [];
-  for (var d of diff) {
-    op_keys.push(d.key as string);
+  let ops: { [key: string]: IDiffEntry} = {};
+  let opKeys : string[] = [];
+  for (let d of diff) {
+    opKeys.push(d.key as string);
     ops[d.key as string] = d;
   }
-  var all_keys = _getAllKeys(base, op_keys);
+  let allKeys = _getAllKeys(base, opKeys);
 
-  for (;;) {
-    let key = all_keys.shift();
-    if (key === undefined){
+  for (; ; ) {
+    let key = allKeys.shift();
+    if (key === undefined) {
       break;
     }
     let keyString = _makeKeyString(key, level + 1);
-    if (valueIn(key, op_keys)) {
+    if (valueIn(key, opKeys)) {
       // Entry has a change
       let e = ops[key];
       let op = e.op;
@@ -199,7 +199,7 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
           let valr = stringify((e as IDiffAdd).value, level + 1, false) +
               postfix;
           let length = keyString.length + valr.length;
-          if (!_entriesAfter(all_keys, ops, true)) {
+          if (!_entriesAfter(allKeys, ops, true)) {
             length -= postfix.length - 1; // Newline will still be included
           }
           additions.push(new DiffRangeRaw(remote.length, length));
@@ -208,13 +208,13 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
         if (valueIn(op, [DiffOp.REMOVE, DiffOp.REPLACE])) {
           let valb = stringify(map[key], level + 1, false) + postfix;
           let length = keyString.length + valb.length;
-          if (!_entriesAfter(all_keys, ops, false)) {
+          if (!_entriesAfter(allKeys, ops, false)) {
             length -= postfix.length - 1; // Newline will still be included
           }
           deletions.push(new DiffRangeRaw(baseIndex, length));
           baseIndex += valb.length;
         }
-      } else if (op == DiffOp.PATCH) {
+      } else if (op === DiffOp.PATCH) {
         let pd = patchStringified(map[key], (e as IDiffPatch).diff, level + 1);
         let valr = pd.remote;
         // Insert key string:
@@ -242,7 +242,7 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
 
   // Stringify correctly
   if (remote.slice(remote.length - postfix.length) == postfix) {
-    remote = remote.slice(0, remote.length - postfix.length)
+    remote = remote.slice(0, remote.length - postfix.length);
   }
   let indent = repeatString(JSON_INDENT, level);
   remote = indent + '{\n' + remote + '\n' + indent + '}';
@@ -251,10 +251,10 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
 }
 
 function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: number) : StringifiedPatchResult {
-  var remote = '';
-  var additions: DiffRangeRaw[] = [];
-  var deletions: DiffRangeRaw[] = [];
-  var baseIndex = 0;  // Position in base string
+  let remote = '';
+  let additions: DiffRangeRaw[] = [];
+  let deletions: DiffRangeRaw[] = [];
+  let baseIndex = 0;  // Position in base string
   let postfix = ',\n';
 
   // Short-circuit if diff is empty
@@ -264,20 +264,20 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
             deletions: deletions};
   }
   // Index into obj, the next item to take unless diff says otherwise
-  var take = 0;
-  var skip = 0;
-  for (var e of diff) {
-    var op = e.op;
-    var index = e.key as number;
+  let take = 0;
+  let skip = 0;
+  for (let e of diff) {
+    let op = e.op;
+    let index = e.key as number;
 
     // Take values from obj not mentioned in diff, up to not including index
-    for (;index > take; take++) {
+    for (; index > take; take++) {
       let unchanged = stringify(base[take], level + 1) + postfix;
       remote += unchanged;
       baseIndex += unchanged.length;
     }
 
-    if (op == DiffOp.SEQINSERT) {
+    if (op === DiffOp.SEQINSERT) {
       // Extend with new values directly
       let val = '';
       for (let v of (e as IDiffAddRange).valuelist) {
@@ -290,8 +290,7 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
       additions.push(new DiffRangeRaw(remote.length, difflen));
       remote += val;
       skip = 0;
-    }
-    else if (op == DiffOp.SEQDELETE) {
+    } else if (op === DiffOp.SEQDELETE) {
       // Delete a number of values by skipping
       let val = '';
       let len = (e as IDiffRemoveRange).length;
@@ -305,8 +304,7 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
       deletions.push(new DiffRangeRaw(baseIndex, difflen));
       baseIndex += val.length;
       skip = (e as IDiffRemoveRange).length;
-    }
-    else if (op == DiffOp.PATCH) {
+    } else if (op === DiffOp.PATCH) {
       let pd = patchStringified(base[index], (e as IDiffPatch).diff, level + 1);
       skip = 1;
 
@@ -325,13 +323,13 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
   }
 
   // Take unchanged values at end
-  for (;base.length > take; take++) {
+  for (; base.length > take; take++) {
     remote += stringify(base[take], level + 1) + postfix;
   }
 
   // Stringify correctly
   if (remote.slice(remote.length - postfix.length) == postfix) {
-    remote = remote.slice(0, remote.length - postfix.length)
+    remote = remote.slice(0, remote.length - postfix.length);
   }
   let indent = repeatString(JSON_INDENT, level);
   remote = indent + '[\n' + remote + '\n' + indent + ']';
@@ -340,9 +338,9 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
 }
 
 function patchString(base: string, diff: IDiffEntry[], level: number, stringifyPatch?: boolean) : StringifiedPatchResult {
-  var additions: DiffRangeRaw[] = [];
-  var deletions: DiffRangeRaw[] = [];
-  var baseIndex= 0;
+  let additions: DiffRangeRaw[] = [];
+  let deletions: DiffRangeRaw[] = [];
+  let baseIndex= 0;
 
   // Short-circuit if diff is empty
   if (diff === null || diff === undefined) {
@@ -351,24 +349,24 @@ function patchString(base: string, diff: IDiffEntry[], level: number, stringifyP
             deletions: deletions};
   }
   // Index into obj, the next item to take unless diff says otherwise
-  var take = 0;
-  var skip = 0;
-  var remote = '';
-  for (var e of diff) {
-    var op = e.op;
-    var index = e.key as number;
+  let take = 0;
+  let skip = 0;
+  let remote = '';
+  for (let e of diff) {
+    let op = e.op;
+    let index = e.key as number;
 
     // Take values from obj not mentioned in diff, up to not including index
     let unchanged = base.slice(take, index);
     remote += unchanged;
     baseIndex += unchanged.length;
 
-    if (op == DiffOp.SEQINSERT) {
+    if (op === DiffOp.SEQINSERT) {
       let added = (e as IDiffAddRange).valuelist;
       additions.push(new DiffRangeRaw(remote.length, added.length));
       remote += added;
       skip = 0;
-    } else if (op == DiffOp.SEQDELETE) {
+    } else if (op === DiffOp.SEQDELETE) {
       // Delete a number of values by skipping
       skip = (e as IDiffRemoveRange).length;
       deletions.push(new DiffRangeRaw(baseIndex, skip));

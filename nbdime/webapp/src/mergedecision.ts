@@ -9,7 +9,8 @@
 
 
 import {
-  IDiffEntry, IDiffPatch, opRemove, opReplace, opRemoveRange, opPatch
+  IDiffEntry, IDiffPatch, opRemove, opReplace, opRemoveRange, opPatch,
+  ChunkSource
 } from './diffutil';
 
 import {
@@ -38,7 +39,7 @@ interface IMergeDecision {
 }
 
 
-
+export
 function popPath(diffs: IDiffEntry[][], popInner?: boolean): {
       diffs: IDiffEntry[][], key: string | number} {
   if (diffs.length < 1) {
@@ -265,6 +266,23 @@ function applyDecisions(base: any, decisions: IMergeDecision[]): any {
 
 
 
+/**
+ * Label a set of diffs with a source, recursively.
+ */
+export
+function labelSource(diff: IDiffEntry[], source: ChunkSource): IDiffEntry[] {
+  if (diff) {
+    for (let d of diff) {
+      d.source = source;
+      if ((d as IDiffPatch).diff !== undefined) {
+        labelSource((d as IDiffPatch).diff, source);
+      }
+    }
+  }
+  return diff;
+}
+
+
 type DiffTree = {[prefix: string]: {'path': DecisionPath, 'diff': IDiffEntry[]}};
 
 /**
@@ -310,11 +328,11 @@ function _mergeTree(tree: DiffTree, sortedPaths: string[]): IDiffEntry[] {
   return trunk;
 }
 
+
 /**
  * Builds a diff for direct application on base. The `which` argument either
  * selects the 'local', 'remote' or 'merged' diffs.
  */
-
 export
 function buildDiffs(base: any, decisions: IMergeDecision[], which: string): IDiffEntry[] {
   let tree: DiffTree = {};
@@ -377,4 +395,16 @@ function pushPatchDecision(decision: IMergeDecision, prefix: DecisionPath): IMer
     }
   }
   return dec;
+}
+
+export
+function filterDecisions(decisions: IMergeDecision[], path: DecisionPath) {
+  let ret: IMergeDecision[] = [];
+  for (let md of decisions) {
+    if (isPrefixArray(path, md.common_path)) {
+      md.common_path.splice(0, path.length);
+      ret.push(md);
+    }
+  }
+  return ret;
 }

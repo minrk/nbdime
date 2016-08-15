@@ -202,7 +202,7 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
           if (!_entriesAfter(allKeys, ops, true)) {
             length -= postfix.length - 1; // Newline will still be included
           }
-          additions.push(new DiffRangeRaw(remote.length, length));
+          additions.push(new DiffRangeRaw(remote.length, length, e.source));
           remote += keyString + valr;
         }
         if (valueIn(op, [DiffOp.REMOVE, DiffOp.REPLACE])) {
@@ -211,7 +211,7 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
           if (!_entriesAfter(allKeys, ops, false)) {
             length -= postfix.length - 1; // Newline will still be included
           }
-          deletions.push(new DiffRangeRaw(baseIndex, length));
+          deletions.push(new DiffRangeRaw(baseIndex, length, e.source));
           baseIndex += valb.length;
         }
       } else if (op === DiffOp.PATCH) {
@@ -287,7 +287,7 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
       if (index === base.length) {
         difflen -= 1; // No comma if at end
       }
-      additions.push(new DiffRangeRaw(remote.length, difflen));
+      additions.push(new DiffRangeRaw(remote.length, difflen, e.source));
       remote += val;
       skip = 0;
     } else if (op === DiffOp.SEQDELETE) {
@@ -301,7 +301,7 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
       if (len + index === base.length) {
         difflen -= 1; // No comma if at end
       }
-      deletions.push(new DiffRangeRaw(baseIndex, difflen));
+      deletions.push(new DiffRangeRaw(baseIndex, difflen, e.source));
       baseIndex += val.length;
       skip = (e as IDiffRemoveRange).length;
     } else if (op === DiffOp.PATCH) {
@@ -363,13 +363,13 @@ function patchString(base: string, diff: IDiffEntry[], level: number, stringifyP
 
     if (op === DiffOp.SEQINSERT) {
       let added = (e as IDiffAddRange).valuelist;
-      additions.push(new DiffRangeRaw(remote.length, added.length));
+      additions.push(new DiffRangeRaw(remote.length, added.length, e.source));
       remote += added;
       skip = 0;
     } else if (op === DiffOp.SEQDELETE) {
       // Delete a number of values by skipping
       skip = (e as IDiffRemoveRange).length;
-      deletions.push(new DiffRangeRaw(baseIndex, skip));
+      deletions.push(new DiffRangeRaw(baseIndex, skip, e.source));
       baseIndex += skip;
     } else {
       throw 'Invalid diff op on string: ' + op;

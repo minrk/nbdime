@@ -7,8 +7,8 @@ import {
 } from 'jupyterlab/lib/notebook/notebook/nbformat';
 
 import {
-  DiffOp, IDiffEntry, IDiffAddRange, IDiffRemoveRange, IDiffPatch, IDiffAdd,
-  getDiffKey, DiffRangeRaw, DiffRangePos, raw2Pos
+  DiffOp, IDiffEntry, IDiffAddRange, IDiffRemoveRange, IDiffPatch,
+  getDiffKey, DiffRangeRaw, DiffRangePos, raw2Pos, ChunkSource
 } from './diffutil';
 
 import {
@@ -32,10 +32,24 @@ import * as CodeMirror from 'codemirror';
  */
 export class Chunk {
   constructor(
-    public editFrom: number,
-    public editTo: number,
-    public origFrom: number,
-    public origTo: number) {}
+      public editFrom: number,
+      public editTo: number,
+      public origFrom: number,
+      public origTo: number,
+      source?: ChunkSource) {
+    if (source) {
+      this.source = source;
+    }
+    this.source = source || null;
+  }
+
+  /**
+   * Indicates the source of a chunk in a merge condition.
+   *
+   * For merged content this can be used to indicate whther the chunk originates
+   * from base, local, remote or somewhere else.
+   */
+  source: ChunkSource;
 
   /**
    * Checks whether the given line number is within the range spanned by editFrom - editTo
@@ -200,12 +214,14 @@ export class StringDiffModel implements IStringDiffModel {
     let current: Chunk = null;
     let isAddition: boolean = null;
     let range: DiffRangePos = null;
+    let additions = this.additions;
+    let deletions = this.deletions;
     for (; ; ) {
       // Figure out which element to take next
-      if (ia < this.additions.length) {
-        if (id < this.deletions.length) {
-          let ra = this.additions[ia];
-          let rd = this.deletions[id];
+      if (ia < additions.length) {
+        if (id < deletions.length) {
+          let ra = additions[ia];
+          let rd = deletions[id];
           if (ra.from.line < rd.from.line - editOffset ||
                 (ra.from.line === rd.from.line - editOffset &&
                  ra.from.ch <= rd.from.ch)) {
@@ -218,7 +234,7 @@ export class StringDiffModel implements IStringDiffModel {
           // No more deletions
           isAddition = true;
         }
-      } else if (id < this.deletions.length) {
+      } else if (id < deletions.length) {
         // No more additions
         isAddition = false;
       } else {
@@ -227,9 +243,9 @@ export class StringDiffModel implements IStringDiffModel {
       }
 
       if (isAddition) {
-        range = this.additions[ia++];
+        range = additions[ia++];
       } else {
-        range = this.deletions[id++];
+        range = deletions[id++];
       }
       let linediff = range.to.line - range.from.line;
       if (range.endsOnNewline) {
@@ -250,6 +266,7 @@ export class StringDiffModel implements IStringDiffModel {
                 range.to.line + endOffset + linediff);
             current.editTo = Math.max(current.editTo,
                 range.to.line + endOffset + editOffset);
+            console.assert(current.source === range.source);
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);
@@ -261,6 +278,7 @@ export class StringDiffModel implements IStringDiffModel {
                 range.to.line + endOffset - editOffset);
             current.editTo = Math.max(current.editTo,
                 range.to.line + endOffset + linediff);
+            console.assert(current.source === range.source);
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);
@@ -289,6 +307,7 @@ export class StringDiffModel implements IStringDiffModel {
             startOrig + endOffset
           );
         }
+        current.source = range.source;
       }
       editOffset += isAddition ? -linediff : linediff;
     }
@@ -350,11 +369,11 @@ export function createDirectDiffModel(base: any, remote: any): StringDiffModel {
   if (base === null) {
     // Added cell
     baseStr = null;
-    additions.push(new DiffRangeRaw(0, remoteStr.length));
+    additions.push(new DiffRangeRaw(0, remoteStr.length, undefined));
   } else if (remote === null) {
     // Deleted cell
     remoteStr = null;
-    deletions.push(new DiffRangeRaw(0, baseStr.length));
+    deletions.push(new DiffRangeRaw(0, baseStr.length, undefined));
   } else if (remoteStr !== baseStr) {
     throw 'Invalid arguments to createDirectDiffModel().' +
       'Either base or remote should be null, or they should be equal!';
@@ -370,6 +389,7 @@ export function createDirectDiffModel(base: any, remote: any): StringDiffModel {
  * The parameter nbMimetype is the MIME type set for the entire notebook, and is
  * used as the MIME type for code cells.
  */
+export
 function setMimetypeFromCellType(model: IStringDiffModel, cell: nbformat.ICell,
                                  nbMimetype: string) {
   let cellType = cell.cell_type;
@@ -491,8 +511,8 @@ export class OutputDiffModel implements IDiffModel {
     };
     let base = key ? getMemberByPath(this.base, key) : this.base;
     let remote = key ? getMemberByPath(this.remote, key) : this.remote;
-    let diff = this.diff && key ?
-      getMemberByPath(this.diff, key, getDiffKey) :
+    let diff = (this.diff && key) ?
+      getMemberByPath(this.diff, key, getDiffKey) as IDiffEntry[] :
       this.diff;
     let model: IStringDiffModel = null;
     if (this.unchanged || this.added || this.deleted || !diff) {

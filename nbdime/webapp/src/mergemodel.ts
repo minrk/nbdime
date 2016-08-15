@@ -7,25 +7,150 @@ import {
 } from 'jupyterlab/lib/notebook/notebook/nbformat';
 
 import {
-  IDiffAddRange, IDiffPatch, IDiffRemoveRange, DiffOp
+  IDiffAddRange, IDiffPatch, IDiffRemoveRange, DiffOp, DiffRangePos, raw2Pos,
+  IDiffEntry
 } from './diffutil';
 
 import {
-  CellDiffModel, createAddedCellDiffModel,
-  createDeletedCellDiffModel, createPatchedCellDiffModel
+  CellDiffModel, createAddedCellDiffModel, StringDiffModel, IStringDiffModel,
+  createDeletedCellDiffModel, createPatchedCellDiffModel, Chunk,
+  setMimetypeFromCellType
 } from './diffmodel';
 
 import {
-  IMergeDecision, resolveCommonPaths, buildDiffs
+  IMergeDecision, resolveCommonPaths, buildDiffs, labelSource, filterDecisions,
+  popPath
 } from './mergedecision';
 
 import {
-  stringify
+  stringify, patchStringified
 } from './patch';
 
 import {
   arraysEqual, valueIn
 } from './util';
+
+
+export
+class DecisionStringDiffModel extends StringDiffModel {
+  constructor(base: any, decisions: IMergeDecision[],
+              collapsible?: boolean, header?: string, collapsed?: boolean) {
+    // Set up initial parameters for super call
+    base = (typeof base === 'string') ? base as string : stringify(base);
+    super(base, '', [], [],
+      collapsible, header, collapsed);
+    this.decisions = decisions;
+    this._outdated = true;
+    this._update();
+  }
+
+  decisions: IMergeDecision[];
+
+  get additions(): DiffRangePos[] {
+    if (this._outdated) {
+      this._update();
+    }
+    return this._additions;
+  }
+  set additions(value: DiffRangePos[]) {
+    this._additions = value;
+  }
+
+  get deletions(): DiffRangePos[] {
+    if (this._outdated) {
+      this._update();
+    }
+    return this._deletions;
+  }
+  set deletions(value: DiffRangePos[]) {
+    this._deletions = value;
+  }
+
+  get remote(): string {
+    if (this._outdated) {
+      this._update();
+    }
+    return this._remote;
+  }
+  set remote(value: string) {
+    this._remote = value;
+  }
+
+  invalidate() {
+    this._outdated = true;
+  }
+
+  get invalid(): boolean {
+    return this._outdated;
+  }
+
+  decide(chunk: Chunk, action: string, customDiff?: IDiffEntry[]): void {
+    // First, figure out which decision the chunk corresponds to
+    let md = this.decisions[0];  // FIXME: Placehodler
+    if (md.action !== action || action === 'custom' && customDiff) {
+      md.action = action;
+      if (action === 'custom') {
+        md.custom_diff = customDiff;
+      }
+      this.invalidate();
+    }
+  }
+
+  protected _update(): void {
+    this._outdated = false;
+    let diff = buildDiffs(this.base, this.decisions, 'merged');
+    let out = patchStringified(this.base, diff);
+    this._additions = raw2Pos(out.additions, out.remote);
+    this._deletions = raw2Pos(out.deletions, this.base);
+    this._remote = out.remote;
+  }
+
+  protected _additions: DiffRangePos[];
+  protected _deletions: DiffRangePos[];
+  protected _remote: string;
+  protected _outdated: boolean;
+}
+
+
+function createPatchedCellDecisionDiffModel(
+    base: nbformat.ICell, decisions: IMergeDecision[], mimetype: string):
+    CellDiffModel {
+  let source: DecisionStringDiffModel = null;
+  let metadata: DecisionStringDiffModel = null;
+  let outputs: DecisionStringDiffModel[] = null;
+
+  for (let md of decisions) {
+    if (md.common_path.length === 0) {
+      let diffs = [md.local_diff, md.remote_diff];
+      if (md.custom_diff) {
+        diffs.push(md.custom_diff);
+      }
+      let val = popPath(diffs, true);
+      console.assert(val !== null);
+      md.local_diff = val.diffs[0];
+      md.remote_diff = val.diffs[1];
+      if (val.diffs.length > 2) {
+        md.custom_diff = val.diffs[2];
+      }
+      md.common_path.push(val.key);
+    }
+  }
+
+  source = new DecisionStringDiffModel(
+    base.source, filterDecisions(decisions, ['source']));
+  setMimetypeFromCellType(source as IStringDiffModel, base, mimetype);
+
+  let metadataDec = filterDecisions(decisions, ['source']);
+  if (metadataDec.length > 0) {
+    metadata = new DecisionStringDiffModel(
+      base.metadata, metadataDec);
+  }
+
+  if (base.cell_type === 'code' && (base as nbformat.ICodeCell).outputs) {
+    // TODO: Implement
+  }
+  return new CellDiffModel(source, metadata, outputs, base.cell_type);
+}
 
 
 /**
@@ -100,8 +225,8 @@ export class CellMergeModel {
    */
   get merged(): CellDiffModel {
     if (this._merged === undefined) {
-      let diff = buildDiffs(this.base, this.decisions, 'merged');
-      this._merged = createPatchedCellDiffModel(this.base, diff, this.mimetype);
+      this._merged = createPatchedCellDecisionDiffModel(
+        this.base, this.decisions, this.mimetype);
     }
     return this._merged;
   }
@@ -121,13 +246,8 @@ export class CellMergeModel {
   /**
    *
    */
-  diffSourceLUT: {[id: string]: string; };
-
-  /**
-   *
-   */
   addDecision(decision: IMergeDecision) {
-    // Don't allow patching if we've already made models
+    // Don't allow additional decision if we've already made models!
     console.assert(!this._local && !this._remote && !this._merged);
 
     if (arraysEqual(decision.common_path, ['cells'])) {
@@ -142,13 +262,18 @@ export class CellMergeModel {
     }
   }
 
+  /**
+   * Split a decision with a patch on one side into a set of new, one-sided
+   * patch opertations. Useful to split a cell deletion vs patch decision.
+   */
   protected splitPatch(md: IMergeDecision, patch: IDiffPatch, local: boolean): IMergeDecision[] {
     // Split patch on source, metadata and outputs, and make new decisions
     let diff = patch.diff;
     let out: IMergeDecision[] = [];
     for (let d of diff) {
+      // TODO: Remove once we support this:
       if (!valueIn(d.key, ['source', 'metadata', 'outputs'])) {
-        throw 'Currently not able to handle conflicts on cell variable \"' +
+        throw 'Currently not able to handle decisions on cell variable \"' +
               d.key + '\"';
       }
       out.push({
@@ -240,11 +365,13 @@ export class CellMergeModel {
         if (ops[0] === DiffOp.REMOVE) {
           this._local = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'local';
+          // The patch op will be on cell level. Split it on sub keys!
           newDecisions = newDecisions.concat(this.splitPatch(
             md, md.remote_diff[0] as IDiffPatch, false));
         } else {
           this._remote = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'remote';
+          // The patch op will be on cell level. Split it on sub keys!
           newDecisions = newDecisions.concat(this.splitPatch(
             md, md.local_diff[0] as IDiffPatch, true));
         }
@@ -545,6 +672,16 @@ class NotebookMergeModel {
     mergeDecisions = splitCellRemovals(mergeDecisions);
     mergeDecisions = splitCellInsertions(mergeDecisions);
     resolveCommonPaths(mergeDecisions);
+    for (let md of mergeDecisions) {
+      if (md.action === 'either') {
+        labelSource(md.local_diff, 'either');
+        labelSource(md.remote_diff, 'either');
+      } else {
+        labelSource(md.local_diff, 'local');
+        labelSource(md.remote_diff, 'remote');
+      }
+      labelSource(md.custom_diff, 'custom');
+    }
     return mergeDecisions;
   }
 

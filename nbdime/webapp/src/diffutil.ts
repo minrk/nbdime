@@ -51,6 +51,10 @@ namespace DiffOp {
 }
 
 
+export
+type ChunkSource = 'local' | 'remote' | 'either' | 'custom';
+
+
 /**
  * Base class for all diff entries
  */
@@ -65,6 +69,13 @@ export interface IDiffEntryBase {
    * A string identifying the diff operation type, as defined by DiffOp.
    */
   op: string;
+
+  /**
+   * Optional: Source of diff, for use when merging.
+   *
+   * This should not need to be set manually.
+   */
+  source?: ChunkSource;
 }
 
 
@@ -206,9 +217,10 @@ export class DiffRangeRaw {
   /**
    * Create a new range [from, to = from + length)
    */
-  constructor(from: number, length: number) {
+  constructor(from: number, length: number, source: ChunkSource) {
     this.from = from;
     this.to = from + length;
+    this.source = source;
   }
 
   /**
@@ -228,6 +240,11 @@ export class DiffRangeRaw {
    * The final index of the range (non-inclusive, compatible with .slice())
    */
   to: number;
+
+  /**
+   * Diff source for merging
+   */
+  source: ChunkSource;
 }
 
 /**
@@ -263,6 +280,11 @@ export class DiffRangePos {
    * Whether the diff represented by the range ends on a newline.
    */
   endsOnNewline: boolean;
+
+  /**
+   * Diff source for merging
+   */
+  source: ChunkSource;
 }
 
 
@@ -327,6 +349,7 @@ export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
       )
     );
     let pos = new DiffRangePos(from, to, chunkFirstLine, endsOnNewline);
+    pos.source = r.source;
     result.push(pos);
   }
   return result;

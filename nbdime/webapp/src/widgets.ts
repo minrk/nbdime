@@ -551,7 +551,22 @@ class CellMergeWidget extends Panel {
 
     let header = new Panel();
     header.addClass('jp-Merge-cell-header');
-    header.addChild(new Widget());
+    let w = new Widget();
+    this.headerTitleWidget = w;
+    header.addChild(w);
+    this.deleteToggle = document.createElement('input');
+    this.deleteToggle.setAttribute('type', 'checkbox');
+    this.deleteToggle.checked = this.model.deleteCell;
+    this.deleteToggle.onchange = (event) => {
+      this.model.deleteCell = this.deleteToggle.checked;
+    };
+    w = new Widget();
+    let label = document.createElement('label');
+    label.appendChild(this.deleteToggle);
+    label.innerHTML += 'Delete cell';
+    w.node.appendChild(label);
+    w.addClass('jp-Merge-delete-toggle');
+    header.addChild(w);
     this.addChild(header);
     this.header = header;
 
@@ -645,9 +660,11 @@ class CellMergeWidget extends Panel {
   mimetype: string;
 
   header: Panel;
+  deleteToggle: HTMLInputElement;
+  headerTitleWidget: Widget;
 
   set headerTitle(value: string) {
-    this.header.childAt(0).node.innerText = value;
+    this.headerTitleWidget.node.innerText = value;
   }
 
   /**

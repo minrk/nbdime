@@ -13,6 +13,7 @@ from tornado import ioloop, web, escape
 import nbformat
 import nbdime
 from nbdime.merging.notebooks import decide_notebook_merge
+from nbdime.nbmergeapp import _build_arg_parser
 
 
 # TODO: See <notebook>/notebook/services/contents/handlers.py for possibly useful utilities:
@@ -25,6 +26,9 @@ from nbdime.merging.notebooks import decide_notebook_merge
 here = os.path.abspath(os.path.dirname(__file__))
 static_path = os.path.join(here, "static")
 template_path = os.path.join(here, "templates")
+
+builder = _build_arg_parser()
+merge_args = builder.parse_args(["--strategy", "mergetool", "", "", ""])
 
 exit_code = 0
 
@@ -138,7 +142,8 @@ class ApiMergeHandler(NbdimeApiHandler):
         remote_nb = self.get_notebook_argument("remote")
 
         try:
-            decisions = decide_notebook_merge(base_nb, local_nb, remote_nb)
+            decisions = decide_notebook_merge(base_nb, local_nb, remote_nb,
+                                              args=merge_args)
         except Exception as e:
             raise web.HTTPError(400, "Error while attempting to merge documents: %s" % e)
 

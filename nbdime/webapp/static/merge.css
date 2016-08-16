@@ -81,6 +81,22 @@
 }
 
 
+.jp-Merge-gutter-picker {
+  width: 16px;
+  text-align: right;
+}
+
+.jp-Merge-gutter-conflict {
+  width: 16px;
+  color: #b00;
+  text-align: right;
+}
+
+.jp-Merge-conflict {
+  background-color: #ffecec;
+}
+
+
 #nbdime-header {
   margin: auto;
   width: 90%;

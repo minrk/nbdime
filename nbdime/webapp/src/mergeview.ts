@@ -61,7 +61,10 @@ export type DiffClasses = {
 CodeMirror.defaults.autoRefresh = true;
 
 
-const GUTTER_MARKER_CLASS = 'jp-Merge-gutter-buttons';
+const GUTTER_PICKER_CLASS = 'jp-Merge-gutter-picker';
+const GUTTER_CONFLICT_CLASS = 'jp-Merge-gutter-conflict';
+
+const CHUNK_CONFLICT_CLASS = 'jp-Merge-conflict';
 
 const leftClasses: DiffClasses = { chunk: 'CodeMirror-merge-l-chunk',
           start: 'CodeMirror-merge-l-chunk-start',
@@ -167,10 +170,10 @@ class DiffView {
         set(fast);
     }
     function set(fast) {
-        let upd = false;
-        for (let dv of self.edit.state.diffViews) {
-          upd = upd || dv.updating || dv.updatingFast;
-        }
+      let upd = false;
+      for (let dv of self.edit.state.diffViews) {
+        upd = upd || dv.updating || dv.updatingFast;
+      }
       if (upd) {
         return;
       }
@@ -223,13 +226,27 @@ class DiffView {
   }
 
   onGutterClick(instance: CodeMirror.Editor, line: number, gutter: string, clickEvent: Event): void {
-    let node = instance.lineInfo(line).gutterMarkers[GUTTER_MARKER_CLASS];
-    if (node && node.source) {
-      let s = node.source as ChunkSource;
-      if (instance === this.orig) {
-        s.decision.action = s.action;
-      } else if (instance === this.edit) {
-        s.decision.action = 'base';
+    let li = instance.lineInfo(line);
+    if (!li.gutterMarkers || !li.gutterMarkers.hasOwnProperty(gutter)) {
+      return;
+    }
+    let node = li.gutterMarkers[gutter];
+    if (node && node.sources) {
+      let ss = node.sources as ChunkSource[];
+      if (gutter === GUTTER_PICKER_CLASS) {
+        if (instance === this.orig) {
+          for (let s of ss) {
+            s.decision.action = s.action;
+          }
+        } else if (instance === this.edit) {
+          for (let s of ss) {
+            s.decision.action = 'base';
+          }
+        }
+      } else if (gutter === GUTTER_CONFLICT_CLASS) {
+        for (let s of ss) {
+          s.decision.conflict = false;
+        }
       }
       for (let dv of this.edit.state.diffViews as DiffView[]) {
         if (dv.model instanceof DecisionStringDiffModel) {
@@ -263,7 +280,7 @@ class DiffView {
     }
     // editor: What triggered event, other: What needs to be synced
     let editor, other, now = +new Date;
-    if (type == EventDirection.OUTGOING) {
+    if (type === EventDirection.OUTGOING) {
       editor = this.edit;
       other = this.orig;
     } else {
@@ -323,22 +340,53 @@ class DiffView {
 
     let self = this;
     function markChunk(editor: CodeMirror.Editor, from: number, to: number,
-                       source: ChunkSource) {
-      if (!givenClasses && source) {
+                       sources: ChunkSource[]) {
+      if (!givenClasses && sources.length > 0) {
         classes = copyObj(mergeClassPrefix) as DiffClasses;
+        // First, figure out 'action' state of chunk
+        let s = sources[0].action;
+        if (sources.length > 1) {
+          for (let si of sources.slice(1)) {
+            if (si.action !== s) {
+              s = 'mixed';
+              break;
+            }
+          }
+        }
         for (let k of Object.keys(classes)) {
-          classes[k] += '-' + source.action;
+          classes[k] += '-' + s;
         }
       }
+      // Next, figure out conflict state
+      let conflict = false;
+      if (sources.length > 0) {
+        for (let s of sources) {
+          if (s.decision.conflict) {
+            conflict = true;
+            break;
+          }
+        }
+      }
+
       for (let i = from; i < to; ++i) {
         let line = editor.addLineClass(i, 'background', classes.chunk);
-        let gutter = elt(
-          'div', '\u27ad', classes.gutter);
-        (gutter as any).source = source;
+        if (conflict) {
+          editor.addLineClass(line, 'background', CHUNK_CONFLICT_CLASS);
+        }
         if (i === from) {
           editor.addLineClass(line, 'background', classes.start);
           if (self.type !== 'merge') {
-            editor.setGutterMarker(line, GUTTER_MARKER_CLASS, gutter);
+            // For all editors except merge editor, add a picker button
+            let picker = elt('div', '\u27ad', classes.gutter);
+            (picker as any).sources = sources;
+            picker.classList.add(GUTTER_PICKER_CLASS);
+            editor.setGutterMarker(line, GUTTER_PICKER_CLASS, picker);
+          } else if (conflict && editor === self.orig) {
+            // Add conflict markers on editor, if conflicted
+            let conflictMarker = elt('div', '\u2757', '');
+            (conflictMarker as any).sources = sources;
+            conflictMarker.classList.add(GUTTER_CONFLICT_CLASS);
+            editor.setGutterMarker(line, GUTTER_CONFLICT_CLASS, conflictMarker);
           }
         }
         if (i === to - 1) {
@@ -350,8 +398,16 @@ class DiffView {
       if (from === to) {
         let line = editor.addLineClass(from, 'background', classes.start);
         if (self.type !== 'merge') {
-          editor.setGutterMarker(line, GUTTER_MARKER_CLASS, elt(
-            'div', '\u27ad', classes.gutter));
+          let picker = elt('div', '\u27ad', classes.gutter);
+          (picker as any).sources = sources;
+          picker.classList.add(GUTTER_PICKER_CLASS);
+          editor.setGutterMarker(line, GUTTER_PICKER_CLASS, picker);
+        } else if (conflict) {
+          // Add conflict markers on editor, if conflicted
+          let conflictMarker = elt('div', '\u2757', '');
+          (conflictMarker as any).sources = sources;
+          conflictMarker.classList.add(GUTTER_CONFLICT_CLASS);
+          editor.setGutterMarker(line, GUTTER_CONFLICT_CLASS, conflictMarker);
         }
         markers.push(line);
       }
@@ -367,9 +423,9 @@ class DiffView {
       highlightChars(editor, diff, markers, cls);
       for (let c of self.chunks) {
         if (edit) {
-          markChunk(editor, c.editFrom, c.editTo, c.source);
+          markChunk(editor, c.editFrom, c.editTo, c.sources);
         } else {
-          markChunk(editor, c.origFrom, c.origTo, c.source);
+          markChunk(editor, c.origFrom, c.origTo, c.sources);
         }
       }
     });
@@ -412,9 +468,12 @@ function clearMarks(editor: CodeMirror.Editor, arr: any[], classes: DiffClasses)
       editor.removeLineClass(mark, 'background', classes.chunk);
       editor.removeLineClass(mark, 'background', classes.start);
       editor.removeLineClass(mark, 'background', classes.end);
+      editor.removeLineClass(mark, 'background', CHUNK_CONFLICT_CLASS);
       // Merge editor does not set a marker currently, so don't clear for it:
       if (valueIn(classes.gutter, [leftClasses.gutter, rightClasses.gutter])) {
-        editor.setGutterMarker(mark, GUTTER_MARKER_CLASS, null);
+        editor.setGutterMarker(mark, GUTTER_PICKER_CLASS, null);
+      } else {
+        editor.setGutterMarker(mark, GUTTER_CONFLICT_CLASS, null);
       }
     }
   }
@@ -623,7 +682,7 @@ class MergeView {
     let hasMerge = local !== null && merged !== null;
     if (hasMerge) {
       console.assert(remote.base === local.base);
-      options.gutters = [GUTTER_MARKER_CLASS];
+      options.gutters = [GUTTER_CONFLICT_CLASS, GUTTER_PICKER_CLASS];
 
       if (local.remote === null) {
         // Local value was deleted

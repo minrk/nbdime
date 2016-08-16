@@ -26,7 +26,7 @@ type DecisionPath = (string | number)[];
 export
 type ChunkSource = {
   decision: IMergeDecision;
-  action: 'local' | 'remote' | 'either' | 'custom'
+  action: 'local' | 'remote' | 'either' | 'custom' | 'mixed';
 };
 
 export

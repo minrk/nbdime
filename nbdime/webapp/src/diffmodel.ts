@@ -16,6 +16,10 @@ import {
 } from './mergedecision';
 
 import {
+  valueIn
+} from './util';
+
+import {
   patchStringified, stringify, patch
 } from './patch';
 
@@ -41,10 +45,7 @@ export class Chunk {
       public origFrom: number,
       public origTo: number,
       source?: ChunkSource) {
-    if (source) {
-      this.source = source;
-    }
-    this.source = source || null;
+    this.sources = source ? [source] : [];
   }
 
   /**
@@ -53,7 +54,7 @@ export class Chunk {
    * For merged content this can be used to indicate whther the chunk originates
    * from base, local, remote or somewhere else.
    */
-  source: ChunkSource;
+  sources: ChunkSource[];
 
   /**
    * Checks whether the given line number is within the range spanned by editFrom - editTo
@@ -270,7 +271,9 @@ export class StringDiffModel implements IStringDiffModel {
                 range.to.line + endOffset + linediff);
             current.editTo = Math.max(current.editTo,
                 range.to.line + endOffset + editOffset);
-            console.assert(current.source.action === range.source.action);
+            if (!valueIn(range.source, current.sources)) {
+              current.sources.push(range.source);
+            }
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);
@@ -282,7 +285,9 @@ export class StringDiffModel implements IStringDiffModel {
                 range.to.line + endOffset - editOffset);
             current.editTo = Math.max(current.editTo,
                 range.to.line + endOffset + linediff);
-            console.assert(current.source.action === range.source.action);
+            if (!valueIn(range.source, current.sources)) {
+              current.sources.push(range.source);
+            }
           } else {
             // No overlap with chunk, start new one
             chunks.push(current);
@@ -311,7 +316,7 @@ export class StringDiffModel implements IStringDiffModel {
             startOrig + endOffset
           );
         }
-        current.source = range.source;
+        current.sources.push(range.source);
       }
       editOffset += isAddition ? -linediff : linediff;
     }

@@ -16,20 +16,20 @@
     "test:ie": "npm run build:test && karma start --browsers=IE test/karma.conf.js"
   },
   "devDependencies": {
-    "awesome-typescript-loader": "^2.1.1",
-    "concurrently": "^2.0.0",
+    "awesome-typescript-loader": "2.1.1",
+    "concurrently": "^2.2.0",
     "css-loader": "^0.23.1",
     "expect.js": "^0.3.1",
-    "file-loader": "^0.8.5",
+    "file-loader": "^0.9.0",
     "json-loader": "^0.5.4",
-    "karma": "^0.13.19",
-    "karma-chrome-launcher": "^0.2.2",
-    "karma-coverage": "^0.5.3",
-    "karma-firefox-launcher": "^0.1.7",
-    "karma-ie-launcher": "^0.2.0",
-    "karma-mocha": "^0.2.1",
-    "karma-mocha-reporter": "^1.1.5",
-    "mocha": "^2.3.4",
+    "karma": "^1.2.0",
+    "karma-chrome-launcher": "^1.0.1",
+    "karma-coverage": "^1.1.1",
+    "karma-firefox-launcher": "^1.0.0",
+    "karma-ie-launcher": "^1.0.0",
+    "karma-mocha": "^1.1.1",
+    "karma-mocha-reporter": "^2.1.0",
+    "mocha": "^3.0.2",
     "rimraf": "^2.5.2",
     "source-map-loader": "^0.1.5",
     "style-loader": "^0.13.1",
@@ -38,14 +38,10 @@
     "webpack": "^1.13.1"
   },
   "dependencies": {
-    "codemirror": "^5.11.0",
+    "codemirror": "^5.17.0",
     "json-stable-stringify": "^1.0.1",
-    "jupyter-js-services": "^0.11.4",
-    "jupyterlab": "^0.1.2",
-    "phosphor-commandpalette": "^0.2.0",
-    "phosphor-keymap": "^0.8.0",
-    "phosphor-panel": "^1.0.0-rc.1",
-    "phosphor-splitpanel": "^1.0.0-rc.1",
-    "phosphor-widget": "^1.0.0-rc.1"
+    "jupyter-js-services": "^0.18.0",
+    "jupyterlab": "^0.2.0",
+    "phosphor": "^0.6.1"
   }
 }

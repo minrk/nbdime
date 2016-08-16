@@ -17,12 +17,16 @@ import {
 } from 'jupyterlab/lib/renderers';
 
 import {
+  defaultSanitizer
+} from 'jupyterlab/lib/sanitizer';
+
+import {
   Widget
-} from 'phosphor-widget';
+} from 'phosphor/lib/ui/widget';
 
 import {
   Panel
-} from 'phosphor-panel';
+} from 'phosphor/lib/ui/panel';
 
 import {
   IDiffEntry
@@ -55,7 +59,7 @@ function showDiff(data: {base: nbformat.INotebookContent, diff: IDiffEntry[]}) {
     new TextRenderer()
   ];
 
-  let renderers: RenderMime.MimeMap<RenderMime.IRenderer<Widget>> = {};
+  let renderers: RenderMime.MimeMap<RenderMime.IRenderer> = {};
   let order: string[] = [];
   for (let t of transformers) {
     for (let m of t.mimetypes) {
@@ -63,8 +67,8 @@ function showDiff(data: {base: nbformat.INotebookContent, diff: IDiffEntry[]}) {
       order.push(m);
     }
   }
-  let rendermime = new RenderMime<Widget>({
-    renderers:renderers, order:order});
+  let rendermime = new RenderMime({
+    renderers: renderers, order: order, sanitizer: defaultSanitizer});
 
   let nbdModel = new NotebookDiffModel(data.base, data.diff);
   let nbdWidget = new NotebookDiffWidget(nbdModel, rendermime);
@@ -73,8 +77,8 @@ function showDiff(data: {base: nbformat.INotebookContent, diff: IDiffEntry[]}) {
   root.innerHTML = '';
   let panel = new Panel();
   panel.id = 'main';
-  panel.attach(root);
-  panel.addChild(nbdWidget);
+  Widget.attach(panel, root);
+  panel.addWidget(nbdWidget);
   window.onresize = () => { panel.update(); };
 }
 

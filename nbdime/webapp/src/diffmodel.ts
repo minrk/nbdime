@@ -69,6 +69,10 @@ export class Chunk {
   inOrig(line: number) {
     return line >= this.origFrom && line <= this.origTo;
   }
+
+  /**
+   *
+   */
 };
 
 
@@ -164,6 +168,97 @@ export interface IStringDiffModel extends IDiffModel {
   getChunks(): Chunk[];
 }
 
+export
+class Chunker {
+  constructor() {
+    this.chunks = [];
+    this.editOffset = 0;
+  }
+
+  protected _getCurrent() {
+    return this.chunks.length > 0 ? this.chunks[this.chunks.length - 1] : null;
+  }
+
+  addDiff(range: DiffRangePos, isAddition: boolean) {
+    let linediff = range.to.line - range.from.line;
+    if (range.endsOnNewline) {
+      linediff += 1;
+    }
+    let firstLineNew = range.from.ch === 0 && linediff > 0;
+
+    let startOffset = range.chunkStartLine ? 0 : 1;
+    let endOffset =
+      range.chunkStartLine && range.endsOnNewline && firstLineNew ?
+      0 : 1;
+
+    let current = this._getCurrent();
+    if (current) {
+      // Have existing chunk, check for overlap
+      if (isAddition) {
+        if (current.inOrig(range.from.line)) {
+          current.origTo = Math.max(current.origTo,
+              range.to.line + endOffset + linediff);
+          current.editTo = Math.max(current.editTo,
+              range.to.line + endOffset + this.editOffset);
+          if (!valueIn(range.source, current.sources)) {
+            current.sources.push(range.source);
+          }
+        } else {
+          // No overlap with chunk, start new one
+          current = null;
+        }
+      } else {
+        if (current.inEdit(range.from.line)) {
+          current.origTo = Math.max(current.origTo,
+              range.to.line + endOffset - this.editOffset);
+          current.editTo = Math.max(current.editTo,
+              range.to.line + endOffset + linediff);
+          if (!valueIn(range.source, current.sources)) {
+            current.sources.push(range.source);
+          }
+        } else {
+          // No overlap with chunk, start new one
+          current = null;
+        }
+      }
+    }
+    if (!current) {
+      // No current chunk, start a new one
+      if (isAddition) {
+        let startOrig = range.from.line;
+        let startEdit = startOrig + this.editOffset;
+        current = new Chunk(
+          startEdit + startOffset,
+          startEdit + endOffset,
+          startOrig + startOffset,
+          startOrig + endOffset + linediff
+        );
+      } else {
+        let startEdit = range.from.line;
+        let startOrig = startEdit - this.editOffset;
+        current = new Chunk(
+          startEdit + startOffset,
+          startEdit + endOffset + linediff,
+          startOrig + startOffset,
+          startOrig + endOffset
+        );
+      }
+      current.sources.push(range.source);
+      this.chunks.push(current);
+    }
+    this.editOffset += isAddition ? -linediff : linediff;
+  }
+
+  addDummy(range: DiffRangePos) {
+    let current = this._getCurrent();
+    if (current) {
+    }
+  }
+
+  chunks: Chunk[];
+  editOffset: number;
+}
+
 
 /**
  * Standard implementation of the IStringDiffModel interface.
@@ -207,21 +302,14 @@ export class StringDiffModel implements IStringDiffModel {
     }
   }
 
-  /**
-   * Uses Chunk.inOrig/inEdit to determine diff entry overlap.
-   */
-  getChunks(): Chunk[] {
-    let chunks: Chunk[] = [];
-    let startEdit = 0, startOrig = 0, editOffset = 0;
-    let edit = CodeMirror.Pos(0, 0), orig = CodeMirror.Pos(0, 0);
-    let ia = 0, id = 0;
-
-    let current: Chunk = null;
-    let isAddition: boolean = null;
-    let range: DiffRangePos = null;
+  protected _iterateDiffs(): (editOffset: number) => [DiffRangePos, boolean] {
+    let ia = 0;
+    let id = 0;
     let additions = this.additions;
     let deletions = this.deletions;
-    for (; ; ) {
+    let isAddition: boolean = null;
+    let range: DiffRangePos = null;
+    return function(editOffset: number): [DiffRangePos, boolean] {
       // Figure out which element to take next
       if (ia < additions.length) {
         if (id < deletions.length) {
@@ -229,7 +317,7 @@ export class StringDiffModel implements IStringDiffModel {
           let rd = deletions[id];
           if (ra.from.line < rd.from.line - editOffset ||
                 (ra.from.line === rd.from.line - editOffset &&
-                 ra.from.ch <= rd.from.ch)) {
+                  ra.from.ch <= rd.from.ch)) {
             // TODO: Character editOffset should also be used
             isAddition = true;
           } else {
@@ -243,8 +331,8 @@ export class StringDiffModel implements IStringDiffModel {
         // No more additions
         isAddition = false;
       } else {
-        if (current) { chunks.push(current); }
-        break;
+        // Out of ranges!
+        return null;
       }
 
       if (isAddition) {
@@ -252,75 +340,23 @@ export class StringDiffModel implements IStringDiffModel {
       } else {
         range = deletions[id++];
       }
-      let linediff = range.to.line - range.from.line;
-      if (range.endsOnNewline) {
-        linediff += 1;
-      }
-      let firstLineNew = range.from.ch === 0 && linediff > 0;
+      return [range, isAddition];
+    };
+  }
 
-      let startOffset = range.chunkStartLine ? 0 : 1;
-      let endOffset =
-        range.chunkStartLine && range.endsOnNewline && firstLineNew ?
-        0 : 1;
+  /**
+   * Uses Chunk.inOrig/inEdit to determine diff entry overlap.
+   */
+  getChunks(): Chunk[] {
+    let chunker = new Chunker();
 
-      if (current) {
-        // Have existing chunk, check for overlap
-        if (isAddition) {
-          if (current.inOrig(range.from.line)) {
-            current.origTo = Math.max(current.origTo,
-                range.to.line + endOffset + linediff);
-            current.editTo = Math.max(current.editTo,
-                range.to.line + endOffset + editOffset);
-            if (!valueIn(range.source, current.sources)) {
-              current.sources.push(range.source);
-            }
-          } else {
-            // No overlap with chunk, start new one
-            chunks.push(current);
-            current = null;
-          }
-        } else {
-          if (current.inEdit(range.from.line)) {
-            current.origTo = Math.max(current.origTo,
-                range.to.line + endOffset - editOffset);
-            current.editTo = Math.max(current.editTo,
-                range.to.line + endOffset + linediff);
-            if (!valueIn(range.source, current.sources)) {
-              current.sources.push(range.source);
-            }
-          } else {
-            // No overlap with chunk, start new one
-            chunks.push(current);
-            current = null;
-          }
-        }
-      }
-      if (!current) {
-        // No current chunk, start a new one
-        if (isAddition) {
-          startOrig = range.from.line;
-          startEdit = startOrig + editOffset;
-          current = new Chunk(
-            startEdit + startOffset,
-            startEdit + endOffset,
-            startOrig + startOffset,
-            startOrig + endOffset + linediff
-          );
-        } else {
-          startEdit = range.from.line;
-          startOrig = startEdit - editOffset;
-          current = new Chunk(
-            startEdit + startOffset,
-            startEdit + endOffset + linediff,
-            startOrig + startOffset,
-            startOrig + endOffset
-          );
-        }
-        current.sources.push(range.source);
-      }
-      editOffset += isAddition ? -linediff : linediff;
+    let gen = this._iterateDiffs();
+    for (let genv = gen(0); genv !== null; genv = gen(chunker.editOffset)) {
+      let range = genv[0];
+      let isAddition = genv[1];
+      chunker.addDiff(range, isAddition);
     }
-    return chunks;
+    return chunker.chunks;
   }
 
   get unchanged(): boolean {

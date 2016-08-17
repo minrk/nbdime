@@ -19,7 +19,7 @@ import {
 } from './mergemodel';
 
 import {
-  DiffRangePos, IDiffEntry
+  DiffRangePos
 } from './diffutil';
 
 import {
@@ -29,9 +29,6 @@ import {
 import {
   valueIn
 } from './util';
-
-var Pos = CodeMirror.Pos;
-var svgNS = 'http://www.w3.org/2000/svg';
 
 
 export enum DIFF_OP {
@@ -98,7 +95,8 @@ class DiffView {
       leftClasses : type === 'right' ? rightClasses : null;
   }
 
-  init(pane: HTMLElement, edit: CodeMirror.Editor, options: CodeMirror.MergeView.MergeViewEditorConfiguration) {
+  init(pane: HTMLElement, edit: CodeMirror.Editor,
+       options: CodeMirror.MergeView.MergeViewEditorConfiguration) {
     this.edit = edit;
     (this.edit.state.diffViews || (this.edit.state.diffViews = [])).push(this);
     let orig = this.model.remote || '';
@@ -129,7 +127,6 @@ class DiffView {
     let editMarkers = [];
     let origMarkers = [];
     let debounceChange;
-    let updatingFast = false;
     let self: DiffView = this;
     self.updating = false;
     self.updatingFast = false;
@@ -500,7 +497,8 @@ function highlightChars(editor: CodeMirror.Editor, ranges: DiffRangePos[],
 
 
 function getMatchingOrigLine(editLine: number, chunks: Chunk[]): number {
-  let editStart = 0, origStart = 0;
+  let editStart = 0;
+  let origStart = 0;
   // Start values correspond to either the start of the chunk,
   // or the start of a preceding unmodified part before the chunk.
   // It is the difference between these two that is interesting.
@@ -544,7 +542,8 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
     for (let i = 0; i < others[o].chunks.length; i++) {
       let chunk = others[o].chunks[i];
       // Check agains existing matches to see if already consumed:
-      for (var j = 0; j < linesToAlign.length; j++) {
+      let j = 0;
+      for (; j < linesToAlign.length; j++) {
         let align = linesToAlign[j];
         if (align[0] === chunk.editTo) {
           // Chunk already consumed, continue to next chunk
@@ -574,7 +573,8 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
 
 
 function alignLines(cm: CodeMirror.Editor[], lines: number[], aligners): void {
-  let maxOffset = 0, offset = [];
+  let maxOffset = 0;
+  let offset = [];
   for (let i = 0; i < cm.length; i++) {
     if (lines[i] !== null) {
       let off = cm[i].heightAtLine(lines[i], 'local');
@@ -805,7 +805,7 @@ class MergeView {
     let f = function () {
 
       // Clear old aligners
-      var aligners = self.aligners;
+      let aligners = self.aligners;
       for (let i = 0; i < aligners.length; i++) {
         aligners[i].clear();
       }
@@ -875,7 +875,7 @@ function collapseSingle(cm: CodeMirror.Editor, from: number, to: number): {mark:
   widget.className = 'CodeMirror-merge-collapsed-widget';
   widget.title = 'Identical text collapsed. Click to expand.';
   let mark = cm.getDoc().markText(
-    Pos(from, 0), Pos(to - 1),
+    CodeMirror.Pos(from, 0), CodeMirror.Pos(to - 1),
     {
       inclusiveLeft: true,
       inclusiveRight: true,
@@ -977,7 +977,7 @@ function elt(tag: string, content?: string | HTMLElement[], className?: string, 
   if (style) {
     e.style.cssText = style;
   }
-  if (typeof content == 'string') {
+  if (typeof content === 'string') {
     e.appendChild(document.createTextNode(content as string));
   } else if (content) {
     for (let i = 0; i < content.length; ++i) {
@@ -985,12 +985,6 @@ function elt(tag: string, content?: string | HTMLElement[], className?: string, 
     }
   }
   return e;
-}
-
-function clear(node: HTMLElement) {
-  for (let count = node.childNodes.length; count > 0; --count) {
-    node.removeChild(node.firstChild);
-  }
 }
 
 function copyObj(obj: Object, target?: Object) {
@@ -1026,7 +1020,9 @@ function findNextDiff(chunks: Chunk[], start: number, isOrig: boolean): number {
 }
 
 function goNearbyDiff(cm, dir): void | any {
-  let found = null, views = cm.state.diffViews, line = cm.getCursor().line;
+  let found = null;
+  let views = cm.state.diffViews;
+  let line = cm.getCursor().line;
   if (views) {
     for (let i = 0; i < views.length; i++) {
       let dv = views[i];

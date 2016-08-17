@@ -344,7 +344,7 @@ function patchString(base: string, diff: IDiffEntry[], level: number, stringifyP
 
   // Short-circuit if diff is empty
   if (diff === null || diff === undefined) {
-    return {remote: stringify(base, level),
+    return {remote: stringifyPatch ? stringify(base, level) : base,
             additions: additions,
             deletions: deletions};
   }

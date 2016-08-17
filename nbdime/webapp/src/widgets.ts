@@ -554,8 +554,8 @@ class CellMergeWidget extends Panel {
     };
     w = new Widget();
     let label = document.createElement('label');
-    label.appendChild(this.deleteToggle);
-    label.innerHTML += 'Delete cell';
+    label.innerText = 'Delete cell';
+    label.insertBefore(this.deleteToggle, label.childNodes[0]);
     w.node.appendChild(label);
     w.addClass('jp-Merge-delete-toggle');
     header.addWidget(w);

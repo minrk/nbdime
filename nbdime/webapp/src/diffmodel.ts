@@ -23,8 +23,6 @@ import {
   patchStringified, stringify, patch
 } from './patch';
 
-import * as CodeMirror from 'codemirror';
-
 // CHUNKING
 
 /**
@@ -179,7 +177,40 @@ class Chunker {
     return this.chunks.length > 0 ? this.chunks[this.chunks.length - 1] : null;
   }
 
-  addDiff(range: DiffRangePos, isAddition: boolean) {
+  addDiff(range: DiffRangePos, isAddition: boolean): void {
+    let linediff = this._doAdd(range, isAddition);
+    this.editOffset += isAddition ? -linediff : linediff;
+  }
+
+
+
+  /**
+   * Update editOffset from range, but don't use it for any chunks
+   */
+  addDummy(range: DiffRangePos, isAddition: boolean): void {
+    let linediff = range.to.line - range.from.line;
+    this.editOffset += isAddition ? -linediff : linediff;
+  }
+
+  /**
+   * Chunk a region where changes will occur if a currently unapplied diff were
+   * applied.
+   */
+  addGhost(range: DiffRangePos, isAddition: boolean): void {
+    this._doAdd(range, isAddition);
+  }
+
+  chunks: Chunk[];
+  editOffset: number;
+
+
+  /**
+   * Internal helper function for common code between addDiff and addGhost.
+   *
+   * Returns the linediff (difference in lines in edit/orig).
+   */
+  protected _doAdd(range: DiffRangePos, isAddition: boolean): number {
+
     let linediff = range.to.line - range.from.line;
     if (range.endsOnNewline) {
       linediff += 1;
@@ -200,7 +231,7 @@ class Chunker {
               range.to.line + endOffset + linediff);
           current.editTo = Math.max(current.editTo,
               range.to.line + endOffset + this.editOffset);
-          if (!valueIn(range.source, current.sources)) {
+          if (range.source && !valueIn(range.source, current.sources)) {
             current.sources.push(range.source);
           }
         } else {
@@ -213,7 +244,7 @@ class Chunker {
               range.to.line + endOffset - this.editOffset);
           current.editTo = Math.max(current.editTo,
               range.to.line + endOffset + linediff);
-          if (!valueIn(range.source, current.sources)) {
+          if (range.source && !valueIn(range.source, current.sources)) {
             current.sources.push(range.source);
           }
         } else {
@@ -243,20 +274,13 @@ class Chunker {
           startOrig + endOffset
         );
       }
-      current.sources.push(range.source);
+      if (range.source) {
+        current.sources.push(range.source);
+      }
       this.chunks.push(current);
     }
-    this.editOffset += isAddition ? -linediff : linediff;
+    return linediff;
   }
-
-  addDummy(range: DiffRangePos) {
-    let current = this._getCurrent();
-    if (current) {
-    }
-  }
-
-  chunks: Chunk[];
-  editOffset: number;
 }
 
 
@@ -302,7 +326,7 @@ export class StringDiffModel implements IStringDiffModel {
     }
   }
 
-  protected _iterateDiffs(): (editOffset: number) => [DiffRangePos, boolean] {
+  iterateDiffs(): StringDiffModel.DiffIter  {
     let ia = 0;
     let id = 0;
     let additions = this.additions;
@@ -345,12 +369,11 @@ export class StringDiffModel implements IStringDiffModel {
   }
 
   /**
-   * Uses Chunk.inOrig/inEdit to determine diff entry overlap.
+   * Chunk additions/deletions into line-based chunks
    */
   getChunks(): Chunk[] {
     let chunker = new Chunker();
-
-    let gen = this._iterateDiffs();
+    let gen = this.iterateDiffs();
     for (let genv = gen(0); genv !== null; genv = gen(chunker.editOffset)) {
       let range = genv[0];
       let isAddition = genv[1];
@@ -379,6 +402,13 @@ export class StringDiffModel implements IStringDiffModel {
 
   additions: DiffRangePos[];
   deletions: DiffRangePos[];
+}
+
+
+export
+namespace StringDiffModel {
+  export
+  type DiffIter = (editOffset: number) => [DiffRangePos, boolean];
 }
 
 

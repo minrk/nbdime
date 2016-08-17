@@ -81,9 +81,9 @@
 .CodeMirror-merge-l-chunk-end { border-bottom: 1px solid #88e; }
 .CodeMirror-merge-l-connect { fill: #eef; stroke: #88e; stroke-width: 1px; }
 
-.CodeMirror-merge-l-chunk.CodeMirror-merge-r-chunk { background: #dfd; }
-.CodeMirror-merge-l-chunk-start.CodeMirror-merge-r-chunk-start { border-top: 1px solid #4e4; }
-.CodeMirror-merge-l-chunk-end.CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #4e4; }
+.CodeMirror-merge-l-chunk.CodeMirror-merge-r-chunk { background: #ffdddd; }
+.CodeMirror-merge-l-chunk-start.CodeMirror-merge-r-chunk-start { border-top: 1px solid #f88888; }
+.CodeMirror-merge-l-chunk-end.CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #f88888; }
 
 .CodeMirror-merge-collapsed-widget:before {
   content: "(...)";

@@ -37,15 +37,19 @@
 
 .jp-Notebook-merge .CodeMirror-merge-spacer { background-color: #eee; }
 
-.jp-Notebook-merge .CodeMirror-merge-r-chunk { background-color: #ffecec; }
-.jp-Notebook-merge .CodeMirror-merge-r-chunk-start { border-top: 1px solid #f8cbcb; }
-.jp-Notebook-merge .CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #f8cbcb; }
-.jp-Notebook-merge .CodeMirror-merge-r-connect { fill: #ffecec; stroke: #f8cbcb; stroke-width: 1px; }
-.jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-r-inserted { background-color: #f8cbcb }
+.jp-Notebook-merge .CodeMirror-merge-r-chunk { background-color: #dfd; }
+.jp-Notebook-merge .CodeMirror-merge-r-chunk-start,
+.jp-Notebook-merge .CodeMirror-merge-m-chunk-start-remote { border-top: 1px solid #beb; }
+.jp-Notebook-merge .CodeMirror-merge-r-chunk-end,
+.jp-Notebook-merge .CodeMirror-merge-m-chunk-end-remote { border-bottom: 1px solid #beb; }
+.jp-Notebook-merge .CodeMirror-merge-r-connect { fill: #dfd; stroke: #beb; stroke-width: 1px; }
+.jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-r-inserted { background-color: #dfd; }
 
 .jp-Notebook-merge .CodeMirror-merge-l-chunk { background-color: #ececff; }
-.jp-Notebook-merge .CodeMirror-merge-l-chunk-start { border-top: 1px solid #cbcbf8; }
-.jp-Notebook-merge .CodeMirror-merge-l-chunk-end { border-bottom: 1px solid #cbcbf8; }
+.jp-Notebook-merge .CodeMirror-merge-l-chunk-start,
+.jp-Notebook-merge .CodeMirror-merge-m-chunk-start-local { border-top: 1px solid #cbcbf8; }
+.jp-Notebook-merge .CodeMirror-merge-l-chunk-end,
+.jp-Notebook-merge .CodeMirror-merge-m-chunk-end-local { border-bottom: 1px solid #cbcbf8; }
 .jp-Notebook-merge .CodeMirror-merge-l-connect { fill: #ececff; stroke: #cbcbf8; stroke-width: 1px; }
 .jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-l-inserted { background-color: #cbcbf8 }
 
@@ -69,7 +73,7 @@
 }
 
 .jp-Merge-oneway-remote .CodeMirror {
-  background-color: #ffecec;
+  background-color: #dfd;
 }
 
 .jp-Diff-deleted .CodeMirror {
@@ -93,7 +97,7 @@
 }
 
 .jp-Merge-conflict {
-  background-color: #ffecec;
+  background-color: #ffdddd;
 }
 
 

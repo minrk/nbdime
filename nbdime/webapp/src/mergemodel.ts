@@ -7,19 +7,18 @@ import {
 } from 'jupyterlab/lib/notebook/notebook/nbformat';
 
 import {
-  IDiffAddRange, IDiffPatch, IDiffRemoveRange, DiffOp, DiffRangePos, raw2Pos,
-  IDiffEntry
+  IDiffAddRange, IDiffPatch, IDiffRemoveRange, DiffOp, DiffRangePos, raw2Pos
 } from './diffutil';
 
 import {
   CellDiffModel, createAddedCellDiffModel, StringDiffModel, IStringDiffModel,
-  createDeletedCellDiffModel, createPatchedCellDiffModel, Chunk,
-  setMimetypeFromCellType
+  createDeletedCellDiffModel, createPatchedCellDiffModel, Chunker, Chunk,
+  createUnchangedCellDiffModel, setMimetypeFromCellType
 } from './diffmodel';
 
 import {
-  IMergeDecision, resolveCommonPaths, buildDiffs, labelSource, filterDecisions,
-  popPath
+  IMergeDecision, MergeDecision, resolveCommonPaths, buildDiffs, labelSource,
+  filterDecisions, pushPatchDecision, popPath
 } from './mergedecision';
 
 import {
@@ -33,7 +32,8 @@ import {
 
 export
 class DecisionStringDiffModel extends StringDiffModel {
-  constructor(base: any, decisions: IMergeDecision[],
+  constructor(base: any, decisions: MergeDecision[],
+              sourceModels: StringDiffModel[],
               collapsible?: boolean, header?: string, collapsed?: boolean) {
     // Set up initial parameters for super call
     base = (typeof base === 'string') ? base as string : stringify(base);
@@ -41,10 +41,11 @@ class DecisionStringDiffModel extends StringDiffModel {
       collapsible, header, collapsed);
     this.decisions = decisions;
     this._outdated = true;
+    this._sourceModels = sourceModels;
     this._update();
   }
 
-  decisions: IMergeDecision[];
+  decisions: MergeDecision[];
 
   get additions(): DiffRangePos[] {
     if (this._outdated) {
@@ -84,9 +85,91 @@ class DecisionStringDiffModel extends StringDiffModel {
     return this._outdated;
   }
 
+  /**
+   * Chunk additions/deletions into line-based chunks, while also producing
+   * chunks from source models where the decision is a no-op (action 'base').
+   */
+  getChunks(): Chunk[] {
+    type itV = [DiffRangePos, boolean];
+    let chunker = new Chunker();
+    let iter = this.iterateDiffs();
+    let oIters: StringDiffModel.DiffIter[] = [];
+    let oChs: Chunker[] = [];
+    let others: itV[] = [];
+
+    // The trick here is to iterate all the models in staggered parallel
+
+    // Make some utility functions:
+    let nextNoop = function(it: StringDiffModel.DiffIter, ch: Chunker):
+        [DiffRangePos, boolean] {
+      for (let v = it(ch.editOffset); v !== null; v = it(ch.editOffset)) {
+        if (v[0].source && v[0].source.decision.action === 'base') {
+          // Caller is responsible for adding v as dummy when ready!
+          return v;
+        }
+        ch.addDummy(v[0], v[1]);
+      }
+      return null;
+    };
+    let cmp = function(a: itV, b: itV, offsetA: number, offsetB: number) {
+      if (a === null && b === null) {
+        return 0;
+      } else if (a === null) {
+        return 1;
+      } else if (b === null) {
+        return -1;
+      }
+      let lineA = a[0].from.line  + (a[1] ? offsetA : 0);
+      let lineB = b[0].from.line  + (b[1] ? offsetB : 0);
+      if (lineA < lineB || a[0].from.ch < b[0].from.ch) {
+        return -1;
+      } else if (lineA > lineB || a[0].from.ch > b[0].from.ch) {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+    // Set up iterator and dummy chunkers for other models
+    for (let m of this._sourceModels) {
+      let it = m.iterateDiffs();
+      let ch = new Chunker();
+      oIters.push(it);
+      oChs.push(ch);
+      others.push(nextNoop(it, ch));
+    }
+    let own = iter(0);
+    for (; ; ) {
+      // Compare in base index to see which diff is next
+      // First, find minimum first of others:
+      let io: number = 0;
+      for (let i = 1; i < others.length; ++i) {
+        if (0 > cmp(others[i], others[io],
+                    oChs[i].editOffset, oChs[io].editOffset)) {
+          io = i;
+        }
+      }
+      // Check if complete
+      if (own === null && others[io] === null) {
+        break;
+      }
+      // Next find out if other is before own
+      if (0 > cmp(own, others[io], chunker.editOffset, oChs[io].editOffset)) {
+        // Own is first
+        chunker.addDiff(own[0], own[1]);
+        own = iter(chunker.editOffset);
+      } else {
+        // Other is before own
+        chunker.addGhost(others[io][0], others[io][1]);
+        oChs[io].addDummy(others[io][0], others[io][1]);
+        others[io] = nextNoop(oIters[io], oChs[io]);
+      }
+    }
+    return chunker.chunks;
+  }
+
   protected _update(): void {
     this._outdated = false;
-    let diff = buildDiffs(this.base, this.decisions, 'merged', 1);
+    let diff = buildDiffs(this.base, this.decisions, 'merged');
     let out = patchStringified(this.base, diff);
     this._additions = raw2Pos(out.additions, out.remote);
     this._deletions = raw2Pos(out.deletions, this.base);
@@ -97,41 +180,37 @@ class DecisionStringDiffModel extends StringDiffModel {
   protected _deletions: DiffRangePos[];
   protected _remote: string;
   protected _outdated: boolean;
+  protected _sourceModels: StringDiffModel[]
 }
 
 
 function createPatchedCellDecisionDiffModel(
-    base: nbformat.ICell, decisions: IMergeDecision[], mimetype: string):
+    base: nbformat.ICell, decisions: MergeDecision[], mimetype: string,
+    local: CellDiffModel, remote: CellDiffModel):
     CellDiffModel {
   let source: DecisionStringDiffModel = null;
   let metadata: DecisionStringDiffModel = null;
   let outputs: DecisionStringDiffModel[] = null;
 
   for (let md of decisions) {
-    if (md.common_path.length === 0) {
-      let diffs = [md.local_diff, md.remote_diff];
-      if (md.custom_diff) {
-        diffs.push(md.custom_diff);
-      }
-      let val = popPath(diffs, true);
+    if (md.localPath.length === 0) {
+      let val = popPath(md.diffs, true);
       console.assert(val !== null);
-      md.local_diff = val.diffs[0];
-      md.remote_diff = val.diffs[1];
-      if (val.diffs.length > 2) {
-        md.custom_diff = val.diffs[2];
-      }
-      md.common_path.push(val.key);
+      md.diffs = val.diffs;
+      md.pushPath(val.key);
     }
   }
 
   source = new DecisionStringDiffModel(
-    base.source, filterDecisions(decisions, ['source']));
+    base.source, filterDecisions(decisions, ['source'], 2),
+    [local.source as StringDiffModel, remote.source as StringDiffModel]);
   setMimetypeFromCellType(source as IStringDiffModel, base, mimetype);
 
-  let metadataDec = filterDecisions(decisions, ['metadata']);
+  let metadataDec = filterDecisions(decisions, ['metadata'], 2);
   if (metadataDec.length > 0) {
     metadata = new DecisionStringDiffModel(
-      base.metadata, metadataDec);
+      base.metadata, metadataDec,
+      [local.metadata as StringDiffModel, remote.metadata as StringDiffModel]);
   }
 
   if (base.cell_type === 'code' && (base as nbformat.ICodeCell).outputs) {
@@ -145,22 +224,23 @@ function createPatchedCellDecisionDiffModel(
  * CellMergeModel
  */
 export class CellMergeModel {
-  constructor(base: nbformat.ICell, decisions: IMergeDecision[], mimetype: string) {
+  constructor(base: nbformat.ICell, decisions: MergeDecision[], mimetype: string) {
     this.base = base;
     this.mimetype = mimetype;
     this.cellLevel = false;
+    this.deleteCell = false;
 
     // First check for cell-level decisions:
     if (decisions.length === 1 &&
-        arraysEqual(decisions[0].common_path, ['cells'])) {
+        arraysEqual(decisions[0].absolutePath, ['cells'])) {
       // We have a cell level decision
       let md = decisions[0];
       decisions = this._applyCellDecision(md);
     }
     this.decisions = [];
     for (let md of decisions) {
-      // Strip "/cells/*" from path, to make it relative to cell
-      md.common_path = md.common_path.slice(2);
+      // Make local path relative to cell
+      md.level = 2;
       this.decisions.push(md);
     }
   }
@@ -193,7 +273,11 @@ export class CellMergeModel {
       // We're builiding from decisions
       this._finalizeDecisions();
       let diff = buildDiffs(this.base, this.decisions, 'local');
-      this._local = createPatchedCellDiffModel(this.base, diff, this.mimetype);
+      if (diff && diff.length > 0) {
+        this._local = createPatchedCellDiffModel(this.base, diff, this.mimetype);
+      } else {
+        this._local = createUnchangedCellDiffModel(this.base, this.mimetype);
+      }
     }
     return this._local;
   }
@@ -205,7 +289,11 @@ export class CellMergeModel {
     if (this._remote === undefined) {
       this._finalizeDecisions();
       let diff = buildDiffs(this.base, this.decisions, 'remote');
-      this._remote = createPatchedCellDiffModel(this.base, diff, this.mimetype);
+      if (diff && diff.length > 0) {
+        this._remote = createPatchedCellDiffModel(this.base, diff, this.mimetype);
+      } else {
+        this._remote = createUnchangedCellDiffModel(this.base, this.mimetype);
+      }
     }
     return this._remote;
   }
@@ -216,8 +304,10 @@ export class CellMergeModel {
   get merged(): CellDiffModel {
     if (this._merged === undefined) {
       this._finalizeDecisions();
+      // Merge model needs access to local and remote models to also include
+      // chunks from them
       this._merged = createPatchedCellDecisionDiffModel(
-        this.base, this.decisions, this.mimetype);
+        this.base, this.decisions, this.mimetype, this.local, this.remote);
     }
     return this._merged;
   }
@@ -232,23 +322,37 @@ export class CellMergeModel {
   /**
    * The merge decisions that apply to this cell
    */
-  decisions: IMergeDecision[];
+  decisions: MergeDecision[];
 
   /**
    *
    */
-  addDecision(decision: IMergeDecision) {
+  addDecision(decision: MergeDecision) {
     // Don't allow additional decision if we've already made models!
     console.assert(!this._local && !this._remote && !this._merged);
 
-    if (arraysEqual(decision.common_path, ['cells'])) {
+    let ld = decision.localDiff ? decision.localDiff.length : 0;
+    let rd = decision.remoteDiff ? decision.remoteDiff.length : 0;
+
+    if (arraysEqual(decision.absolutePath, ['cells']) ) {
       let decisions = this._applyCellDecision(decision);
       for (let md of decisions) {
-        md.common_path = md.common_path.slice(2);
+        md.level = 2;
+        this.decisions.push(md);
+      }
+    } else if (decision.absolutePath.length === 2 && (ld > 1 || rd > 1)) {
+      console.assert(valueIn(0, [ld, rd]));
+      // More than one op on cell level, split decisions on key
+      decision = pushPatchDecision(decision, decision.absolutePath.slice(1, 2));
+      let diff = (ld ? decision.localDiff : decision.remoteDiff)[0] as IDiffPatch;
+      let decisions = this._splitPatch(decision, diff, !rd);
+      resolveCommonPaths(decisions);
+      for (let md of decisions) {
+        md.level = 2;
         this.decisions.push(md);
       }
     } else {
-      decision.common_path = decision.common_path.slice(2);
+      decision.level = 2;
       this.decisions.push(decision);
     }
   }
@@ -258,13 +362,13 @@ export class CellMergeModel {
     if (!this._finalized) {
       for (let md of this.decisions) {
         if (md.action === 'either') {
-          labelSource(md.local_diff, {'decision': md, 'action': 'either'});
-          labelSource(md.remote_diff, {'decision': md, 'action': 'either'});
+          labelSource(md.localDiff, {'decision': md, 'action': 'either'});
+          labelSource(md.remoteDiff, {'decision': md, 'action': 'either'});
         } else {
-          labelSource(md.local_diff, {'decision': md, 'action': 'local'});
-          labelSource(md.remote_diff, {'decision': md, 'action': 'remote'});
+          labelSource(md.localDiff, {'decision': md, 'action': 'local'});
+          labelSource(md.remoteDiff, {'decision': md, 'action': 'remote'});
         }
-        labelSource(md.custom_diff, {'decision': md, 'action': 'custom'});
+        labelSource(md.customDiff, {'decision': md, 'action': 'custom'});
       }
       this._finalized = true;
     }
@@ -274,28 +378,27 @@ export class CellMergeModel {
    * Split a decision with a patch on one side into a set of new, one-sided
    * patch opertations. Useful to split a cell deletion vs patch decision.
    */
-  protected _splitPatch(md: IMergeDecision, patch: IDiffPatch, local: boolean): IMergeDecision[] {
+  protected _splitPatch(md: MergeDecision, patch: IDiffPatch, local: boolean): MergeDecision[] {
     // Split patch on source, metadata and outputs, and make new decisions
     let diff = patch.diff;
-    let out: IMergeDecision[] = [];
+    let out: MergeDecision[] = [];
     for (let d of diff) {
       // TODO: Remove once we support this:
       if (!valueIn(d.key, ['source', 'metadata', 'outputs'])) {
         throw 'Currently not able to handle decisions on cell variable \"' +
               d.key + '\"';
       }
-      out.push({
-        'common_path': md.common_path.concat([patch.key]),
-        'conflict': md.conflict,
-        'action': md.action,
-        'local_diff': local ? [d] : null,
-        'remote_diff': local ? null : [d],
-      });
+      out.push(new MergeDecision(
+        md.absolutePath.concat([patch.key]),
+        local ? [d] : null,
+        local ? null : [d],
+        md.action,
+        md.conflict));
     }
     return out;
   }
 
-  protected _applyCellDecision(md: IMergeDecision): IMergeDecision[] {
+  protected _applyCellDecision(md: MergeDecision): MergeDecision[] {
     let newDecisions = [];
     /* Possibilities:
      1. Insertion: base is null! Null diff of missing side (unchanged).
@@ -312,16 +415,16 @@ export class CellMergeModel {
     console.assert(!this.cellLevel,
                    'Cannot have multiple cell decisions on one cell!');
     this.cellLevel = true;  // We set this to distinguish case 3 from normal
-    let ld = md.local_diff !== null && md.local_diff.length !== 0;
-    let rd = md.remote_diff !== null && md.remote_diff.length !== 0;
+    let ld = md.localDiff !== null && md.localDiff.length !== 0;
+    let rd = md.remoteDiff !== null && md.remoteDiff.length !== 0;
     if (!ld) {
       // 1. or 2.:
       this._local = null;
-      console.assert(md.remote_diff.length === 1);
+      console.assert(md.remoteDiff.length === 1);
       if (this.base === null) {
         // 1.
-        console.assert(md.remote_diff[0].op === DiffOp.SEQINSERT);
-        let v = (md.remote_diff[0] as IDiffAddRange).valuelist[0];
+        console.assert(md.remoteDiff[0].op === DiffOp.SEQINSERT);
+        let v = (md.remoteDiff[0] as IDiffAddRange).valuelist[0];
         this._remote = createAddedCellDiffModel(v, this.mimetype);
         this._merged = createAddedCellDiffModel(v, this.mimetype);
       } else {
@@ -333,11 +436,11 @@ export class CellMergeModel {
     } else if (!rd) {
       // 1. or 2.:
       this._remote = null;
-      console.assert(md.local_diff.length === 1);
+      console.assert(md.localDiff.length === 1);
       if (this.base === null) {
         // 1.
-        console.assert(md.local_diff[0].op === DiffOp.SEQINSERT);
-        let v = (md.local_diff[0] as IDiffAddRange).valuelist[0];
+        console.assert(md.localDiff[0].op === DiffOp.SEQINSERT);
+        let v = (md.localDiff[0] as IDiffAddRange).valuelist[0];
         this._local = createAddedCellDiffModel(v, this.mimetype);
         this._merged = createAddedCellDiffModel(v, this.mimetype);
       } else {
@@ -348,14 +451,14 @@ export class CellMergeModel {
       }
     } else {
       console.assert(ld && rd);
-      console.assert(md.local_diff.length === 1 && md.remote_diff.length === 1);
+      console.assert(md.localDiff.length === 1 && md.remoteDiff.length === 1);
       // 3. or 4.
-      if (md.local_diff[0].op === md.remote_diff[0].op) {
+      if (md.localDiff[0].op === md.remoteDiff[0].op) {
         // 4.
         if (this.base === null) {
           // Identical insertions (this relies on preprocessing to ensure only
           // one value in valuelist)
-          let v = (md.local_diff[0] as IDiffAddRange).valuelist[0];
+          let v = (md.localDiff[0] as IDiffAddRange).valuelist[0];
           this._local = createAddedCellDiffModel(v, this.mimetype);
           this._remote = createAddedCellDiffModel(v, this.mimetype);
           this._merged = createAddedCellDiffModel(v, this.mimetype);
@@ -367,7 +470,7 @@ export class CellMergeModel {
         }
       } else {
         // 3., by method of elimination
-        let ops = [md.local_diff[0].op, md.remote_diff[0].op];
+        let ops = [md.localDiff[0].op, md.remoteDiff[0].op];
         console.assert(
           valueIn(DiffOp.SEQDELETE, ops) && valueIn(DiffOp.PATCH, ops));
         if (ops[0] === DiffOp.REMOVE) {
@@ -375,13 +478,13 @@ export class CellMergeModel {
           this.deleteCell = md.action === 'local';
           // The patch op will be on cell level. Split it on sub keys!
           newDecisions = newDecisions.concat(this._splitPatch(
-            md, md.remote_diff[0] as IDiffPatch, false));
+            md, md.remoteDiff[0] as IDiffPatch, false));
         } else {
           this._remote = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'remote';
           // The patch op will be on cell level. Split it on sub keys!
           newDecisions = newDecisions.concat(this._splitPatch(
-            md, md.local_diff[0] as IDiffPatch, true));
+            md, md.localDiff[0] as IDiffPatch, true));
         }
       }
     }
@@ -402,45 +505,46 @@ export class CellMergeModel {
  * (addrange). For cells, we split these decisions in two, for easier
  * visualization.
  */
-function splitCellChunks(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
-  let output: IMergeDecision[] = [];
+function splitCellChunks(mergeDecisions: MergeDecision[]): MergeDecision[] {
+  let output: MergeDecision[] = [];
   for (let md of mergeDecisions) {
-    if (md.local_diff && md.local_diff.length === 2) {
+    if (md.localDiff && !md.remoteDiff) {
+      for (let d of md.localDiff) {
+        let nmd = new MergeDecision(md);
+        nmd.localDiff = [d];
+        output.push(nmd);
+      }
+    } else if (md.remoteDiff && !md.localDiff) {
+      for (let d of md.remoteDiff) {
+        let nmd = new MergeDecision(md);
+        nmd.absolutePath = md.absolutePath.slice();
+        nmd.remoteDiff = [d];
+        output.push(nmd);
+      }
+    } else if (md.localDiff && md.localDiff.length === 2) {
       // Split off local
-      output.push({
-        'common_path': md.common_path.slice(),
-        'local_diff': md.local_diff.slice(0, 1),
-        'remote_diff': [],
-        'action': 'local', // Check for custom action first?
-        'conflict': md.conflict,
-        'custom_diff': null
-      });
-      output.push({
-        'common_path': md.common_path.slice(),
-        'local_diff': md.local_diff.slice(1),
-        'remote_diff': md.remote_diff,
-        'action': md.action,
-        'conflict': md.conflict,
-        'custom_diff': md.custom_diff
-      });
-    } else if (md.remote_diff && md.remote_diff.length === 2) {
+      output.push(new MergeDecision(
+        md.absolutePath.slice(),
+        md.localDiff.slice(0, 1),
+        [],
+        'local', // Check for custom action first?
+        md.conflict
+      ));
+      let nmd = new MergeDecision(md);
+      nmd.localDiff = md.localDiff.slice(1);
+      output.push(nmd);
+    } else if (md.remoteDiff && md.remoteDiff.length === 2) {
       // Split off remote
-      output.push({
-        'common_path': md.common_path.slice(),
-        'local_diff': [],
-        'remote_diff': md.remote_diff.slice(0, 1),
-        'action': 'remote', // Check for custom action first?
-        'conflict': md.conflict,
-        'custom_diff': null
-      });
-      output.push({
-        'common_path': md.common_path.slice(),
-        'local_diff': md.local_diff,
-        'remote_diff': md.remote_diff.slice(1),
-        'action': md.action,
-        'conflict': md.conflict,
-        'custom_diff': md.custom_diff
-      });
+      output.push(new MergeDecision(
+        md.absolutePath.slice(),
+        [],
+        md.remoteDiff.slice(0, 1),
+        'remote', // Check for custom action first?
+        md.conflict
+      ));
+      let nmd = new MergeDecision(md);
+      nmd.remoteDiff = md.remoteDiff.slice(1);
+      output.push(nmd);
     } else {
       output.push(md);  // deepCopy?
     }
@@ -453,35 +557,36 @@ function splitCellChunks(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
 /**
  * Split "removerange" diffs on cell list level into individual decisions!
  */
-function splitCellRemovals(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
-  let output: IMergeDecision[] = [];
+function splitCellRemovals(mergeDecisions: MergeDecision[]): MergeDecision[] {
+  let output: MergeDecision[] = [];
 
-  let makeSplitPart = function(md: IMergeDecision, key: number,
-                               local: boolean, remote: boolean) {
-    let newMd: IMergeDecision = {
-      'common_path': md.common_path.slice(),
-      'conflict': md.conflict,
-      'action': md.action  // assert action in ["remote", "base"]?
-    };
+  let makeSplitPart = function(md: MergeDecision, key: number,
+                               local: boolean, remote: boolean): MergeDecision {
+    let newMd = new MergeDecision(md.absolutePath.slice(), null, null,
+                                  md.action, md.conflict);
     let newDiff = [{
         'key': key,
         'op': DiffOp.SEQDELETE,
         'length': 1
     }];
     console.assert(local || remote);
-    newMd.local_diff = local ? newDiff : null;
-    newMd.remote_diff = remote ? newDiff : null;
+    if (local) {
+      newMd.localDiff = newDiff;
+    }
+    if (remote) {
+      newMd.remoteDiff = newDiff;
+    }
     return newMd;
   };
 
   for (let md of mergeDecisions) {
-    if (!arraysEqual(md.common_path, ['cells'])) {
+    if (!arraysEqual(md.absolutePath, ['cells'])) {
       output.push(md);
       continue;
     }
 
-    let dl = md.local_diff && md.local_diff.length > 0 ? md.local_diff[md.local_diff.length - 1] : null;
-    let dr = md.remote_diff && md.remote_diff.length > 0 ? md.remote_diff[md.remote_diff.length - 1] : null;
+    let dl = md.localDiff && md.localDiff.length > 0 ? md.localDiff[md.localDiff.length - 1] : null;
+    let dr = md.remoteDiff && md.remoteDiff.length > 0 ? md.remoteDiff[md.remoteDiff.length - 1] : null;
     // TODO: Does it make sense to split on custom?
 
     if (dl && !dr || dr && !dl) {
@@ -531,9 +636,9 @@ function splitCellRemovals(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
           let newMd = makeSplitPart(md, i, remLocal, !remLocal);
           if (i === pidx) {
             if (remLocal) {
-              newMd.remote_diff = [pOp];
+              newMd.remoteDiff = [pOp];
             } else  {
-              newMd.local_diff = [pOp];
+              newMd.localDiff = [pOp];
             }
           }
           output.push(newMd);
@@ -549,18 +654,15 @@ function splitCellRemovals(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
  * Split "addrange" diffs on cell list level into individual decisions!
  * Also splits two-way insertions into two individual ones.
  */
-function splitCellInsertions(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
+function splitCellInsertions(mergeDecisions: MergeDecision[]): MergeDecision[] {
   // TODO: Implement!
-  let output: IMergeDecision[] = [];
+  let output: MergeDecision[] = [];
 
-  let makeSplitPart = function(md: IMergeDecision, value: any,
-                               local: boolean, remote: boolean) {
-    let newMd: IMergeDecision = {
-      'common_path': md.common_path.slice(),
-      'conflict': md.conflict,
-      'action': md.action  // assert action value?
-    };
-    let key = (local ? md.local_diff : md.remote_diff)[0].key;
+  let makeSplitPart = function(md: MergeDecision, value: any,
+                               local: boolean, remote: boolean): MergeDecision {
+    let newMd = new MergeDecision(md.absolutePath.slice(), null, null,
+                                  md.action, md.conflict);
+    let key = (local ? md.localDiff : md.remoteDiff)[0].key;
     let newDiff = [{
         'key': key,
         'op': DiffOp.SEQINSERT,
@@ -568,30 +670,38 @@ function splitCellInsertions(mergeDecisions: IMergeDecision[]): IMergeDecision[]
     }];
 
     console.assert(local || remote);
-    newMd.local_diff = local ? newDiff : null;
-    newMd.remote_diff = remote ? newDiff : null;
+    if (local) {
+      newMd.localDiff = newDiff;
+    }
+    if (remote) {
+      newMd.remoteDiff = newDiff;
+    }
     return newMd;
   };
 
   for (let md of mergeDecisions) {
     // Just push decisions not on cells list:
-    if (!arraysEqual(md.common_path, ['cells'])) {
+    if (!arraysEqual(md.absolutePath, ['cells'])) {
       output.push(md);
       continue;
     }
 
     // Check wether all diffs are pure addrange
     let correctType = true;
-    for (let dl of md.local_diff) {
-      if (dl.op !== DiffOp.SEQINSERT) {
-        correctType = false;
-        break;
+    if (md.localDiff) {
+      for (let dl of md.localDiff) {
+        if (dl.op !== DiffOp.SEQINSERT) {
+          correctType = false;
+          break;
+        }
       }
     }
-    for (let dl of md.remote_diff) {
-      if (dl.op !== DiffOp.SEQINSERT) {
-        correctType = false;
-        break;
+    if (md.remoteDiff) {
+      for (let dl of md.remoteDiff) {
+        if (dl.op !== DiffOp.SEQINSERT) {
+          correctType = false;
+          break;
+        }
       }
     }
     if (!correctType) {
@@ -599,12 +709,12 @@ function splitCellInsertions(mergeDecisions: IMergeDecision[]): IMergeDecision[]
       continue;
     }
 
-    let dl = md.local_diff && md.local_diff.length === 1 ? md.local_diff[0]  as IDiffAddRange : null;
-    let dr = md.remote_diff && md.remote_diff.length === 1 ? md.remote_diff[0] as IDiffAddRange : null;
+    let dl = md.localDiff && md.localDiff.length === 1 ? md.localDiff[0]  as IDiffAddRange : null;
+    let dr = md.remoteDiff && md.remoteDiff.length === 1 ? md.remoteDiff[0] as IDiffAddRange : null;
 
     if (dl && !dr || dr && !dl) {
       // One-way diff
-      let d = dl ? md.local_diff[0] : md.remote_diff[0];
+      let d = dl ? md.localDiff[0] : md.remoteDiff[0];
       let insert = (d as IDiffAddRange).valuelist;
       for (let v of insert) {
         output.push(makeSplitPart(md, v, !!dl, !!dr));
@@ -661,10 +771,10 @@ class NotebookMergeModel {
    * server.
    */
   constructor(base: nbformat.INotebookContent,
-              mergeDecisions: IMergeDecision[]) {
+              rawMergeDecisions: IMergeDecision[]) {
     this.base = base;
     let ctor = this.constructor as typeof NotebookMergeModel;
-    this.mergeDecisions = ctor.preprocessDecisions(mergeDecisions);
+    this.mergeDecisions = ctor.preprocessDecisions(rawMergeDecisions);
     this.cells = this.buildCellList();
 
     // The notebook metadata MIME type is used for determining the MIME type
@@ -677,20 +787,24 @@ class NotebookMergeModel {
     }
   }
 
-  static preprocessDecisions(mergeDecisions: IMergeDecision[]): IMergeDecision[] {
+  static preprocessDecisions(rawMergeDecisions: IMergeDecision[]): MergeDecision[] {
+    let mergeDecisions: MergeDecision[] = [];
+    for (let rmd of rawMergeDecisions) {
+      mergeDecisions.push(new MergeDecision(rmd));
+    }
     mergeDecisions = splitCellChunks(mergeDecisions);
     mergeDecisions = splitCellRemovals(mergeDecisions);
     mergeDecisions = splitCellInsertions(mergeDecisions);
     resolveCommonPaths(mergeDecisions);
     for (let md of mergeDecisions) {
       if (md.action === 'either') {
-        labelSource(md.local_diff, {'decision': md, 'action': 'either'});
-        labelSource(md.remote_diff, {'decision': md, 'action': 'either'});
+        labelSource(md.localDiff, {'decision': md, 'action': 'either'});
+        labelSource(md.remoteDiff, {'decision': md, 'action': 'either'});
       } else {
-        labelSource(md.local_diff, {'decision': md, 'action': 'local'});
-        labelSource(md.remote_diff, {'decision': md, 'action': 'remote'});
+        labelSource(md.localDiff, {'decision': md, 'action': 'local'});
+        labelSource(md.remoteDiff, {'decision': md, 'action': 'remote'});
       }
-      labelSource(md.custom_diff, {'decision': md, 'action': 'custom'});
+      labelSource(md.customDiff, {'decision': md, 'action': 'custom'});
     }
     return mergeDecisions;
   }
@@ -704,7 +818,7 @@ class NotebookMergeModel {
    * List of merge decisions defining local, remote and merge output in its
    * entirety, given the base.
    */
-  mergeDecisions: IMergeDecision[];
+  mergeDecisions: MergeDecision[];
 
   /**
    * List off individual cell merges
@@ -736,7 +850,7 @@ class NotebookMergeModel {
     let insertOffset = 0;
     // Assumes merge decisions come in order!
     for (let md of this.mergeDecisions) {
-      let key = md.common_path;
+      let key = md.absolutePath;
       if (key.length < 1 || key[0] !== 'cells') {
         continue;   // Only care about decisions on cells here
       }
@@ -744,7 +858,7 @@ class NotebookMergeModel {
       if (arraysEqual(key, ['cells'])) {
         let idx: number = null;
         let insertion = false;
-        for (let di of [md.local_diff, md.remote_diff]) {
+        for (let di of md.diffs) {
           // Ensure diff has exactly one item:
           if (!di || di.length === 0) {
             continue;

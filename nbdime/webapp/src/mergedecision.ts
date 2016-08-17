@@ -17,7 +17,7 @@ import {
 } from './patch';
 
 import {
-  shallowCopy, deepCopy, valueIn, isPrefixArray, findSharedPrefix
+  deepCopy, valueIn, isPrefixArray, findSharedPrefix
 } from './util';
 
 export
@@ -25,7 +25,7 @@ type DecisionPath = (string | number)[];
 
 export
 type ChunkSource = {
-  decision: IMergeDecision;
+  decision: MergeDecision;
   action: 'local' | 'remote' | 'either' | 'custom' | 'mixed';
 };
 
@@ -41,6 +41,89 @@ interface IMergeDecision {
   common_path?: DecisionPath;
 
   custom_diff?: IDiffEntry[];
+}
+
+
+export
+class MergeDecision {
+
+  constructor(obj: DecisionPath | IMergeDecision | MergeDecision,
+              localDiff: IDiffEntry[] = null,
+              remoteDiff: IDiffEntry[] = null,
+              action = 'base',
+              conflict = false,
+              customDiff: IDiffEntry[] = null) {
+    this.level = 0;
+    if (obj instanceof Array) {
+      this._path = obj as DecisionPath;
+    } else if (obj instanceof MergeDecision) {
+      this._path = obj.absolutePath.slice();
+      localDiff = obj.localDiff;
+      remoteDiff = obj.remoteDiff;
+      action = obj.action;
+      conflict = obj.conflict;
+      customDiff = obj.customDiff;
+      this.level = obj.level;
+    } else {
+      this._path = obj.common_path;
+      localDiff = obj.local_diff;
+      remoteDiff = obj.remote_diff;
+      action = obj.action;
+      conflict = obj.conflict;
+      customDiff = obj.custom_diff;
+    }
+    this.localDiff = localDiff;
+    this.remoteDiff = remoteDiff;
+    this.action = action;
+    this.conflict = conflict;
+    this.customDiff = customDiff;
+  }
+
+  get localPath(): DecisionPath {
+    return this._path.slice(this.level);
+  }
+
+  get absolutePath(): DecisionPath {
+    return this._path;
+  }
+
+  set absolutePath(value: DecisionPath) {
+    this._path = value;
+  }
+
+  action: string;
+
+  localDiff: IDiffEntry[];
+
+  remoteDiff: IDiffEntry[];
+
+  customDiff: IDiffEntry[];
+
+  conflict: boolean;
+
+  protected _path: DecisionPath;
+
+  pushPath(key: number | string) {
+    this._path.push(key);
+  }
+
+  get diffs(): IDiffEntry[][] {
+    let diffs = [this.localDiff, this.remoteDiff];
+    if (this.customDiff) {
+      diffs.push(this.customDiff);
+    }
+    return diffs;
+  }
+
+  set diffs(value: IDiffEntry[][]) {
+    this.localDiff = value[0];
+    this.remoteDiff = value[1];
+    if (value.length > 2) {
+      this.customDiff = value[2];
+    }
+  }
+
+  level: number;
 }
 
 
@@ -114,21 +197,17 @@ function pushPath(diffs: IDiffEntry[], prefix: DecisionPath): IDiffEntry[] {
  * processing. Modifies the merge decisions in-place.
  */
 export
-function resolveCommonPaths(decisions: IMergeDecision[]) {
+function resolveCommonPaths(decisions: MergeDecision[]) {
   for (let md of decisions) {
-    let diffs = [md.local_diff, md.remote_diff];
-    if (md.action === 'custom') {
-      diffs.push(md.custom_diff);
-    }
-    let path = md.common_path.slice() || [];
+    let diffs = md.diffs;
+    let path = md.absolutePath || [];
     let popped: {diffs: IDiffEntry[][], key: string | number} = null;
-    while (popped = popPath(diffs)) {
+    while (popped = popPath(diffs, true)) {
       path.push(popped.key);
       diffs = popped.diffs;
     }
-    md.common_path = path;
-    md.local_diff = diffs[0];
-    md.remote_diff = diffs[1];
+    md.absolutePath = path;
+    md.diffs = diffs;
   }
 }
 
@@ -160,50 +239,56 @@ function _getSubObject(obj: any, path: DecisionPath) {
 }
 
 
-function resolveAction(base: any, decision: IMergeDecision): IDiffEntry[] {
-    let a = decision.action;
-    if (a === 'base') {
-        return [];   // no-op
-    } else if (valueIn(a, ['local', 'either'])) {
-        return decision.local_diff.slice();
-    } else if (a === 'remote') {
-        return decision.remote_diff.slice();
-    } else if (a === 'custom') {
-        return decision.custom_diff.slice();
-    } else if (a === 'local_then_remote') {
-        return decision.local_diff.concat(decision.remote_diff);
-    } else if (a === 'remote_then_local') {
-        return decision.remote_diff.concat(decision.local_diff);
-    } else if (a === 'clear') {
-        let key = null;
-        for (let d of decision.local_diff.concat(decision.remote_diff)) {
-            if (key) {
-                console.assert(key === d.key);
-            } else {
-                key = d.key;
-            }
-        }
-        return [opReplace(key, makeClearedValue(base[key]))];
-    } else if (a === 'clear_parent') {
-        if (typeof(base) === typeof([])) {
-            return [opRemoveRange(0, base.length)];
-        } else {
-            // Ideally we would do a opReplace on the parent, but this is not
-            // easily combined with this method, so simply remove all keys
-            let diff: IDiffEntry[] = [];
-            for (let key of base) {
-              diff.push(opRemove(key));
-            }
-            return diff;
-        }
-    } else {
-        throw 'The action \"' + a + '\" is not defined';
+function resolveAction(base: any, decision: MergeDecision): IDiffEntry[] {
+  let a = decision.action;
+  if (a === 'base') {
+    return [];   // no-op
+  } else if (valueIn(a, ['local', 'either'])) {
+    return decision.localDiff.slice();
+  } else if (a === 'remote') {
+    return decision.remoteDiff.slice();
+  } else if (a === 'custom') {
+    return decision.customDiff.slice();
+  } else if (a === 'local_then_remote') {
+    return decision.localDiff.concat(decision.remoteDiff);
+  } else if (a === 'remote_then_local') {
+    return decision.remoteDiff.concat(decision.localDiff);
+  } else if (a === 'clear') {
+    let key = null;
+    for (let d of decision.localDiff.concat(decision.remoteDiff)) {
+      if (key) {
+        console.assert(key === d.key);
+      } else {
+        key = d.key;
+      }
     }
+    let d = opReplace(key, makeClearedValue(base[key]));
+    d.source = {'decision': decision, 'action': 'custom'}
+    return [d];
+  } else if (a === 'clear_parent') {
+    if (typeof(base) === typeof([])) {
+      let d = opRemoveRange(0, base.length);
+      d.source = {'decision': decision, 'action': 'custom'};
+      return [d];
+    } else {
+      // Ideally we would do a opReplace on the parent, but this is not
+      // easily combined with this method, so simply remove all keys
+      let diff: IDiffEntry[] = [];
+      for (let key of base) {
+        let d = opRemove(key);
+        d.source = {'decision': decision, 'action': 'custom'};
+        diff.push(d);
+      }
+      return diff;
+    }
+  } else {
+    throw 'The action \"' + a + '\" is not defined';
+  }
 }
 
 
 export
-function applyDecisions(base: any, decisions: IMergeDecision[]): any {
+function applyDecisions(base: any, decisions: MergeDecision[]): any {
   let merged = deepCopy(base);
   let prevPath: DecisionPath = null;
   let parent: any = null;
@@ -214,14 +299,14 @@ function applyDecisions(base: any, decisions: IMergeDecision[]): any {
   // we need to track it
   let clearParent: boolean = false;
   for (let md of decisions) {
-    let path = md.common_path.slice();
+    let path = md.absolutePath;
     // We patch all decisions with the same path in one op
-    if (path == prevPath) {
+    if (path === prevPath) {
       if (clearParent) {
         // Another entry will clear the parent, so all other decisions
         // should be dropped
       } else {
-        if (md.action == 'clear_parent') {
+        if (md.action === 'clear_parent') {
           clearParent = true;
           diffs = [];  // Clear any exisiting decsions!
         }
@@ -311,10 +396,10 @@ function _mergeTree(tree: DiffTree, sortedPaths: string[]): IDiffEntry[] {
       nextPath = tree[nextPathStr].path;
     }
     let subdiffs = tree[pathStr].diff;
+    trunk = trunk.concat(subdiffs);
     // First, check if path is subpath of nextPath:
     if (isPrefixArray(nextPath, path)) {
       // We can simply promote existing diffs to next path
-      trunk = trunk.concat(subdiffs);
       if (nextPath) {
         trunk = pushPath(trunk, path.slice(nextPath.length));
         root = nextPath;
@@ -323,6 +408,7 @@ function _mergeTree(tree: DiffTree, sortedPaths: string[]): IDiffEntry[] {
       // We have started on a new trunk
       // Collect branches on the new trunk, and merge the trunks
       let newTrunk = _mergeTree(tree, sortedPaths.slice(i + 1));
+      nextPath = tree[sortedPaths[sortedPaths.length - 1]].path;
       let prefix = findSharedPrefix(path, nextPath);
       let pl = prefix.length;
       trunk = pushPath(trunk, path.slice(pl)).concat(
@@ -342,26 +428,24 @@ function _mergeTree(tree: DiffTree, sortedPaths: string[]): IDiffEntry[] {
  * decisions common_path before applying.
  */
 export
-function buildDiffs(base: any, decisions: IMergeDecision[], which: string,
-                    stripPath?: number): IDiffEntry[] {
+function buildDiffs(base: any, decisions: MergeDecision[], which: string): IDiffEntry[] {
   let tree: DiffTree = {};
   let sortedPaths = [];
   let local = which === 'local';
   let merged = which === 'merged';
-  stripPath = stripPath || 0;
   if (!local && !merged) {
     console.assert(which === 'remote');
   }
   for (let md of decisions) {
     let subdiffs: IDiffEntry[] = null;
-    let path = md.common_path.slice(stripPath);
+    let path = md.localPath;
     if (merged) {
       let sub = _getSubObject(base, path);
       subdiffs = resolveAction(sub, md);
     } else {
-      subdiffs = local ? md.local_diff : md.remote_diff;
+      subdiffs = local ? md.localDiff : md.remoteDiff;
       if (subdiffs === null) {
-        subdiffs = [];
+        continue;
       }
     }
     let strPath = '/' + path.join('/');
@@ -373,6 +457,9 @@ function buildDiffs(base: any, decisions: IMergeDecision[], which: string,
       tree[strPath] = {'diff': subdiffs, 'path': path};
       sortedPaths.push(strPath);
     }
+  }
+  if (Object.keys(tree).length === 0) {
+    return null;
   }
   if (!tree.hasOwnProperty('/')) {
     tree['/'] = {'diff': [], 'path': []};
@@ -390,29 +477,32 @@ function buildDiffs(base: any, decisions: IMergeDecision[], which: string,
  * This is done by wrapping the diffs in nested patch ops.
  */
 export
-function pushPatchDecision(decision: IMergeDecision, prefix: DecisionPath): IMergeDecision {
-  let dec = shallowCopy(decision);
+function pushPatchDecision(decision: MergeDecision, prefix: DecisionPath): MergeDecision {
+  let dec = new MergeDecision(decision);
   // We need to start with inner most key to nest correctly, so reverse:
   for (let key of prefix.slice().reverse()) {
-    if (dec.common_path.length === 0) {
+    if (dec.absolutePath.length === 0) {
       throw 'Cannot remove key from empty decision path: ' + key + ', ' + dec;
     }
-    console.assert(dec.common_path[dec.common_path.length - 1] === key);
-    dec.common_path = dec.common_path.slice(0, -1);  // pop key
-    dec.local_diff = [opPatch(key, dec.local_diff)];
-    dec.remote_diff = [opPatch(key, dec.remote_diff)];
+    console.assert(dec.absolutePath.pop() === key);  // Pop and assert
+    let ld = dec.localDiff && dec.localDiff.length > 0;
+    let rd = dec.remoteDiff && dec.remoteDiff.length > 0;
+    dec.localDiff = ld ? [opPatch(key, dec.localDiff)] : null;
+    dec.remoteDiff = rd ? [opPatch(key, dec.remoteDiff)] : null;
     if (dec.action === 'custom') {
-      dec.custom_diff = [opPatch(key, dec.custom_diff)];
+      dec.customDiff = [opPatch(key, dec.customDiff)];
     }
   }
   return dec;
 }
 
 export
-function filterDecisions(decisions: IMergeDecision[], path: DecisionPath) {
-  let ret: IMergeDecision[] = [];
+function filterDecisions(decisions: MergeDecision[], path: DecisionPath,
+                         skipLevels?: number): MergeDecision[] {
+  let ret: MergeDecision[] = [];
   for (let md of decisions) {
-    if (isPrefixArray(path, md.common_path)) {
+    if (isPrefixArray(path, md.absolutePath.slice(skipLevels))) {
+      md.level += path.length;
       ret.push(md);
     }
   }

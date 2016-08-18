@@ -75,11 +75,11 @@ function getConfigOption(name: string): any {
  * should return to its caller.
  */
 export
-function closeTool() {
-  //TODO: Send an exit code
-  var xhttp = new XMLHttpRequest();
-  var url = '/api/closetool';
+function closeTool(exitCode=0) {
+  let xhttp = new XMLHttpRequest();
+  let url = '/api/closetool';
   xhttp.open('POST', url, false);
+  xhttp.setRequestHeader('exit_code', exitCode.toString());
   xhttp.send();
   window.close();
 }

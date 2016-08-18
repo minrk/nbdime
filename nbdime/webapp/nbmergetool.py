@@ -57,6 +57,7 @@ def main():
     base = arguments.base
     local = arguments.local
     remote = arguments.remote
+    merged = arguments.merged
     # can't handle non-notebook files
     # FIXME: ignore for now
     if (not base.endswith('.ipynb') and not local.endswith('.ipynb') and
@@ -65,7 +66,8 @@ def main():
         return
     browse(port)
     run_server(port=port, cwd=cwd,
-               mergetool_args=dict(base=base, local=local, remote=remote))
+               mergetool_args=dict(base=base, local=local, remote=remote),
+               outputfilename=merged)
 
 if __name__ == "__main__":
     main()

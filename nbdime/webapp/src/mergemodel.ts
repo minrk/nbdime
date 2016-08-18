@@ -450,43 +450,47 @@ export class CellMergeModel {
 function splitCellChunks(mergeDecisions: MergeDecision[]): MergeDecision[] {
   let output: MergeDecision[] = [];
   for (let md of mergeDecisions) {
-    if (md.localDiff && !md.remoteDiff) {
-      for (let d of md.localDiff) {
+    if (arraysEqual(md.absolutePath, ['cells'])) {
+      if (md.localDiff && !md.remoteDiff) {
+        for (let d of md.localDiff) {
+          let nmd = new MergeDecision(md);
+          nmd.localDiff = [d];
+          output.push(nmd);
+        }
+      } else if (md.remoteDiff && !md.localDiff) {
+        for (let d of md.remoteDiff) {
+          let nmd = new MergeDecision(md);
+          nmd.absolutePath = md.absolutePath.slice();
+          nmd.remoteDiff = [d];
+          output.push(nmd);
+        }
+      } else if (md.localDiff && md.localDiff.length === 2) {
+        // Split off local
+        output.push(new MergeDecision(
+          md.absolutePath.slice(),
+          md.localDiff.slice(0, 1),
+          [],
+          'local', // Check for custom action first?
+          md.conflict
+        ));
         let nmd = new MergeDecision(md);
-        nmd.localDiff = [d];
+        nmd.localDiff = md.localDiff.slice(1);
         output.push(nmd);
-      }
-    } else if (md.remoteDiff && !md.localDiff) {
-      for (let d of md.remoteDiff) {
+      } else if (md.remoteDiff && md.remoteDiff.length === 2) {
+        // Split off remote
+        output.push(new MergeDecision(
+          md.absolutePath.slice(),
+          [],
+          md.remoteDiff.slice(0, 1),
+          'remote', // Check for custom action first?
+          md.conflict
+        ));
         let nmd = new MergeDecision(md);
-        nmd.absolutePath = md.absolutePath.slice();
-        nmd.remoteDiff = [d];
+        nmd.remoteDiff = md.remoteDiff.slice(1);
         output.push(nmd);
+      } else {
+        output.push(md);  // deepCopy?
       }
-    } else if (md.localDiff && md.localDiff.length === 2) {
-      // Split off local
-      output.push(new MergeDecision(
-        md.absolutePath.slice(),
-        md.localDiff.slice(0, 1),
-        [],
-        'local', // Check for custom action first?
-        md.conflict
-      ));
-      let nmd = new MergeDecision(md);
-      nmd.localDiff = md.localDiff.slice(1);
-      output.push(nmd);
-    } else if (md.remoteDiff && md.remoteDiff.length === 2) {
-      // Split off remote
-      output.push(new MergeDecision(
-        md.absolutePath.slice(),
-        [],
-        md.remoteDiff.slice(0, 1),
-        'remote', // Check for custom action first?
-        md.conflict
-      ));
-      let nmd = new MergeDecision(md);
-      nmd.remoteDiff = md.remoteDiff.slice(1);
-      output.push(nmd);
     } else {
       output.push(md);
     }

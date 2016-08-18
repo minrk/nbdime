@@ -7,18 +7,18 @@
  * Make a POST request passing a JSON argument and receiving a JSON result.
  */
 export function requestJson(url: string, argument: any, callback: any, onError: any) {
-  var xhttp = new XMLHttpRequest();
+  let xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
-    if (xhttp.readyState == 4) {
-      if (xhttp.status == 200) {
-        var result = JSON.parse(xhttp.responseText);
+    if (xhttp.readyState === 4) {
+      if (xhttp.status === 200) {
+        let result = JSON.parse(xhttp.responseText);
         callback(result);
       } else {
         onError(xhttp.responseText);
       }
     }
   };
-  xhttp.open('POST', url, true)
+  xhttp.open('POST', url, true);
   xhttp.setRequestHeader('Content-type', 'application/json');
   xhttp.send(JSON.stringify(argument));
 }
@@ -26,7 +26,7 @@ export function requestJson(url: string, argument: any, callback: any, onError: 
 /**
  * Global config data for the Nbdime application.
  */
-var configData: any = null;
+let configData: any = null;
 
 /**
  *  Make an object fully immutable by freezing each object in it.
@@ -35,10 +35,10 @@ function deepFreeze(obj: any): any {
 
   // Freeze properties before freezing self
   Object.getOwnPropertyNames(obj).forEach(function(name) {
-    var prop = obj[name];
+    let prop = obj[name];
 
     // Freeze prop if it is an object
-    if (typeof prop == 'object' && prop !== null && !Object.isFrozen(prop)) {
+    if (typeof prop === 'object' && prop !== null && !Object.isFrozen(prop)) {
       deepFreeze(prop);
     }
   });

@@ -8,7 +8,7 @@ import {
 
 import {
   DiffRangeRaw, JSON_INDENT, repeatString, IDiffEntry, IDiffAdd, IDiffPatch,
-  IDiffAddRange, IDiffRemoveRange, DiffOp
+  IDiffAddRange, IDiffRemoveRange, DiffOp, flattenStringDiff
 } from './diffutil';
 
 
@@ -348,6 +348,9 @@ function patchString(base: string, diff: IDiffEntry[], level: number, stringifyP
             additions: additions,
             deletions: deletions};
   }
+  // Diffs are line-based, so flatten to character based:
+  diff = flattenStringDiff(base, diff);
+
   // Index into obj, the next item to take unless diff says otherwise
   let take = 0;
   let skip = 0;

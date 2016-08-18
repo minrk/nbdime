@@ -10,6 +10,7 @@
 
 import {
   IDiffEntry, IDiffPatch, opRemove, opReplace, opRemoveRange, opPatch,
+  getDiffKey
 } from './diffutil';
 
 import {
@@ -263,7 +264,7 @@ function resolveAction(base: any, decision: MergeDecision): IDiffEntry[] {
       }
     }
     let d = opReplace(key, makeClearedValue(base[key]));
-    d.source = {decision: decision, action: 'custom'}
+    d.source = {decision: decision, action: 'custom'};
     return [d];
   } else if (a === 'clear_parent') {
     if (typeof(base) === typeof([])) {
@@ -287,6 +288,25 @@ function resolveAction(base: any, decision: MergeDecision): IDiffEntry[] {
 }
 
 
+/**
+ * Prevent paths from pointing to specific string lines.
+ *
+ * Check if path points to a specific line in a string, if so, split off index.
+ *
+ * Returns a tuple of path and any line key.
+ */
+function splitDiffStringPath(base: any, path: DecisionPath):
+    [DecisionPath, DecisionPath] {
+  for (let i = 0; i < path.length; ++i) {
+    if (typeof base === 'string') {
+      return [path.slice(0, i), path.slice(i)];
+    }
+    base = base[path[i]];
+  }
+  return [path, null];
+}
+
+
 export
 function applyDecisions(base: any, decisions: MergeDecision[]): any {
   let merged = deepCopy(base);
@@ -299,7 +319,9 @@ function applyDecisions(base: any, decisions: MergeDecision[]): any {
   // we need to track it
   let clearParent: boolean = false;
   for (let md of decisions) {
-    let path = md.absolutePath;
+    let spl = splitDiffStringPath(merged, md.localPath);
+    let path = spl[0];
+    let line = spl[1];
     // We patch all decisions with the same path in one op
     if (path === prevPath) {
       if (clearParent) {
@@ -310,7 +332,11 @@ function applyDecisions(base: any, decisions: MergeDecision[]): any {
           clearParent = true;
           diffs = [];  // Clear any exisiting decsions!
         }
-        diffs = diffs.concat(resolveAction(resolved, md));
+        let ad = resolveAction(resolved, md);
+        if (line) {
+          ad = pushPath(ad, line);
+        }
+        diffs = diffs.concat();
       }
     } else {
       // Different path, start a new collection
@@ -338,6 +364,9 @@ function applyDecisions(base: any, decisions: MergeDecision[]): any {
         lastKey = key;
       }
       diffs = resolveAction(resolved, md);
+      if (line) {
+        diffs = pushPath(diffs, line);
+      }
       clearParent = md.action === 'clear_parent';
     }
   }
@@ -438,7 +467,9 @@ function buildDiffs(base: any, decisions: MergeDecision[], which: string): IDiff
   }
   for (let md of decisions) {
     let subdiffs: IDiffEntry[] = null;
-    let path = md.localPath;
+    let spl = splitDiffStringPath(base, md.localPath);
+    let path = spl[0];
+    let line = spl[1];
     if (merged) {
       let sub = _getSubObject(base, path);
       subdiffs = resolveAction(sub, md);
@@ -451,10 +482,23 @@ function buildDiffs(base: any, decisions: MergeDecision[], which: string): IDiff
     let strPath = '/' + path.join('/');
     if (tree.hasOwnProperty(strPath)) {
       // Existing tree entry, simply add diffs to it
-      tree[strPath].diff = tree[strPath].diff.concat(subdiffs);
+      if (line) {
+        let matchDiff = getDiffKey(tree[strPath].diff, line[0]);
+        if (matchDiff) {
+          matchDiff.push.apply(matchDiff, subdiffs);
+        } else {
+          subdiffs = pushPath(subdiffs, line);
+          tree[strPath].diff.push(subdiffs[0])
+        }
+      } else {
+        tree[strPath].diff = tree[strPath].diff.concat(subdiffs);
+      }
     } else {
       // Make new entry in tree
-      tree[strPath] = {'diff': subdiffs, 'path': path};
+      if (line) {
+        subdiffs = pushPath(subdiffs, line);
+      }
+      tree[strPath] = {diff: subdiffs, path: path};
       sortedPaths.push(strPath);
     }
   }

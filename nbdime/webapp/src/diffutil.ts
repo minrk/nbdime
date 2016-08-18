@@ -5,7 +5,7 @@
 import * as CodeMirror from 'codemirror';
 
 import {
-  valueIn
+  valueIn, sortByKey, shallowCopy
 } from './util';
 
 import {
@@ -353,4 +353,117 @@ export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
     result.push(pos);
   }
   return result;
+}
+
+
+
+let _addops = [DiffOp.ADD, DiffOp.SEQINSERT];
+
+/**
+ * Check whether existing collection of diff ops shares a key with the new
+ * diffop, and if they  also have the same op type. Assumes exsiting diff ops
+ * are sorted on key.
+ */
+function checkOverlaps(existing: IDiffEntry[], newv: IDiffEntry) {
+  for (let oo of existing) {
+    if (oo.key === newv.key) {
+      if (oo.op === newv.op) {
+        // Found a match, combine ops
+        return oo;
+      } else if (valueIn(oo.op, _addops) && valueIn(newv.op, _addops)) {
+        // Addrange and single add can both point to same key
+        return oo;
+      }
+    }
+  }
+  return null;
+}
+
+
+/**
+ * Combines new op into an existing op
+ */
+function combineOps(oldv: IDiffEntry, newv: IDiffEntry) {
+  if (valueIn(newv.op, _addops)) {
+    if (oldv.op === DiffOp.ADD) {
+      oldv.op = DiffOp.SEQINSERT;
+      (oldv as IDiffAddRange).valuelist = [(oldv as IDiffAdd).value];
+      (oldv as IDiffAdd).value = undefined;
+    }
+    let oldvt = oldv as IDiffAddRange;
+    if (newv.op === DiffOp.SEQINSERT) {
+      let newvt = newv as IDiffAddRange;
+      // valuelist can also be string, but string also has concat:
+      (oldvt.valuelist as any[]).concat(newvt.valuelist as any[]);
+    } else {
+      let newvt = newv as IDiffAdd;
+      if (typeof oldvt.valuelist === 'string') {
+        oldvt.valuelist += newvt.value;
+      } else {
+        (oldvt.valuelist as any[]).push(newvt.value);
+      }
+    }
+  } else if (newv.op === DiffOp.SEQDELETE) {
+    (oldv as IDiffRemoveRange).length += (newv as IDiffRemoveRange).length;
+  }
+}
+
+
+function accumulateLengths(arr: string[]) {
+  let ret: number[] = [];
+  arr.reduce<number>(function(a: number, b: string, i: number): number {
+    return ret[i] = a + b.length;
+  }, 0);
+  return ret;
+}
+
+
+/**
+ * Translates a diff of strings split by str.splitlines() to a diff of the
+ * joined multiline string
+ */
+export
+function flattenStringDiff(val: string[] | string, diff: IDiffEntry[]) {
+
+  if (typeof val === 'string') {
+    // Split lines (retaining newlines):
+    val = (val as string).match(/^.*([\n\r]|$)/gm);
+  }
+  let a = val as string[];
+  let aMapping = [0].concat(accumulateLengths(a));
+  let flattened: IDiffEntry[] = [];
+  for (let e of diff) {
+    let op = e.op;
+    let newKey = aMapping[e.key];
+    if (op === DiffOp.PATCH) {
+      for (let p of (e as IDiffPatch).diff) {
+        let d = shallowCopy(p);
+        d.key += newKey;
+        let oo = checkOverlaps(flattened, d);
+        if (oo === null) {
+          flattened.push(d);
+        } else {
+          combineOps(oo, d);
+        }
+      }
+    } else {
+      let d = shallowCopy(e);
+      d.key = newKey;
+      if (op === DiffOp.SEQINSERT) {
+        d.valuelist = ((e as IDiffAddRange).valuelist as any[]).join('');
+      } else if (op === DiffOp.SEQDELETE) {
+        let idx = e.key as number + (e as IDiffRemoveRange).length;
+        d.length = aMapping[idx] - d.key;
+      }
+      let oo = checkOverlaps(flattened, d);
+      if (oo === null) {
+        flattened.push(d);
+      } else {
+        combineOps(oo, d);
+      }
+    }
+  }
+  // Finally, sort on key (leaving equal items in original order)
+  // This is done since the original diffs are sorted deeper first!
+  return sortByKey(flattened, 'key');
 }

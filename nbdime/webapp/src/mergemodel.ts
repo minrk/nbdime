@@ -18,7 +18,7 @@ import {
 
 import {
   IMergeDecision, MergeDecision, resolveCommonPaths, buildDiffs, labelSource,
-  filterDecisions, pushPatchDecision, popPath
+  filterDecisions, pushPatchDecision, popPath, applyDecisions
 } from './mergedecision';
 
 import {
@@ -297,6 +297,20 @@ export class CellMergeModel {
       decision.level = 2;
       this.decisions.push(decision);
     }
+  }
+
+
+  /**
+   *
+   */
+  serialize(): nbformat.ICell {
+    let decisions: MergeDecision[] = [];
+    for (let md of this.decisions) {
+      let nmd = new MergeDecision(md);
+      nmd.level = 2;
+      decisions.push(nmd);
+    }
+    return applyDecisions(this.base, decisions) as nbformat.ICell;
   }
 
 
@@ -710,6 +724,28 @@ function splitCellInsertions(mergeDecisions: MergeDecision[]): MergeDecision[] {
 export
 class NotebookMergeModel {
 
+  static preprocessDecisions(rawMergeDecisions: IMergeDecision[]): MergeDecision[] {
+    let mergeDecisions: MergeDecision[] = [];
+    for (let rmd of rawMergeDecisions) {
+      mergeDecisions.push(new MergeDecision(rmd));
+    }
+    mergeDecisions = splitCellChunks(mergeDecisions);
+    mergeDecisions = splitCellRemovals(mergeDecisions);
+    mergeDecisions = splitCellInsertions(mergeDecisions);
+    resolveCommonPaths(mergeDecisions);
+    for (let md of mergeDecisions) {
+      if (md.action === 'either') {
+        labelSource(md.localDiff, {decision: md, action: 'either'});
+        labelSource(md.remoteDiff, {decision: md, action: 'either'});
+      } else {
+        labelSource(md.localDiff, {decision: md, action: 'local'});
+        labelSource(md.remoteDiff, {decision: md, action: 'remote'});
+      }
+      labelSource(md.customDiff, {decision: md, action: 'custom'});
+    }
+    return mergeDecisions;
+  }
+
   /**
    * Create a new NotebookDiffModel from a base notebook and a list of diffs.
    *
@@ -733,26 +769,39 @@ class NotebookMergeModel {
     }
   }
 
-  static preprocessDecisions(rawMergeDecisions: IMergeDecision[]): MergeDecision[] {
-    let mergeDecisions: MergeDecision[] = [];
-    for (let rmd of rawMergeDecisions) {
-      mergeDecisions.push(new MergeDecision(rmd));
-    }
-    mergeDecisions = splitCellChunks(mergeDecisions);
-    mergeDecisions = splitCellRemovals(mergeDecisions);
-    mergeDecisions = splitCellInsertions(mergeDecisions);
-    resolveCommonPaths(mergeDecisions);
-    for (let md of mergeDecisions) {
-      if (md.action === 'either') {
-        labelSource(md.localDiff, {'decision': md, 'action': 'either'});
-        labelSource(md.remoteDiff, {'decision': md, 'action': 'either'});
-      } else {
-        labelSource(md.localDiff, {'decision': md, 'action': 'local'});
-        labelSource(md.remoteDiff, {'decision': md, 'action': 'remote'});
+
+  serialize(): nbformat.INotebookContent {
+    let nb = {};
+    // TODO: Apply merge on metadata
+    for (let key in this.base) {
+      if (key !== 'cells') {
+        nb[key] = this.base[key]
       }
-      labelSource(md.customDiff, {'decision': md, 'action': 'custom'});
     }
-    return mergeDecisions;
+    let cells: nbformat.ICell[] = [];
+    for (let c of this.cells) {
+      cells.push(c.serialize());
+    }
+    nb['cells'] = cells;
+    return nb as nbformat.INotebookContent;
+  }
+
+  decisions(): MergeDecision[] {
+    let ret: MergeDecision[] = [];
+    for (let c of this.cells) {
+      ret = ret.concat(c.decisions);
+    }
+    return ret;
+  }
+
+  conflicts(): MergeDecision[] {
+    let ret: MergeDecision[] = [];
+    for (let md of this.decisions()) {
+      if (md.conflict) {
+        ret.push(md);
+      }
+    }
+    return ret;
   }
 
   /**

@@ -41,9 +41,11 @@ import {
 } from './widgets';
 
 import {
-  requestJson, getConfigOption
+  requestJson, getConfigOption, closeTool
 } from './common';
 
+
+let mergeModel: NotebookMergeModel = null;
 
 /**
  * Show the diff as represented by the base notebook and a list of diff entries
@@ -84,6 +86,7 @@ function showMerge(data: {
   Widget.attach(panel, root);
   panel.addWidget(nbdWidget);
   window.onresize = () => { panel.update(); };
+  return nbmModel;
 }
 
 /**
@@ -137,7 +140,7 @@ function requestMerge(base: string, local: string, remote: string) {
  * Callback for a successfull diff request
  */
 function onMergeRequestCompleted(data: any) {
-  showMerge(data);
+  mergeModel = showMerge(data);
 }
 
 /**
@@ -147,6 +150,66 @@ function onMergeRequestFailed(response: string) {
   console.log('Merge request failed.');
   let root = document.getElementById('nbdime-root');
   root.innerHTML = '<pre>' + response + '</pre>';
+  mergeModel = null;
+}
+
+
+/**
+ * Extract the merged notebook from the model, as well as any remaining
+ * conflicts, and send them to the server for storage / further processing.
+ */
+function saveMerged() {
+  if (!mergeModel) {
+    return;
+  }
+  let nb = mergeModel.serialize();
+  let conflicts: IMergeDecision[] = [];
+  for (let md of mergeModel.conflicts()) {
+    conflicts.push(md.serialize());
+  }
+  submitMerge(nb, conflicts);
+}
+
+/**
+ * Submit a merged notebook
+ */
+function submitMerge(mergedNotebook: nbformat.INotebookContent,
+                     conflicts: IMergeDecision[]) {
+  requestJson('/api/store',
+              {merged: mergedNotebook,
+               conflicts: conflicts},
+               onSubmissionCompleted,
+               onSubmissionFailed);
+}
+
+/**
+ * Callback for a successful store of the submitted merged notebook
+ */
+function onSubmissionCompleted() {
+  // TODO: Indicate success to user!
+}
+
+/**
+ * Callback for a failed store of the submitted merged notebook
+ */
+function onSubmissionFailed(response: string) {
+  // TODO: Indicate failure + error to user!
+}
+
+
+/**
+ *
+ */
+export
+function closeMerge(ev: Event) {
+  let conflict = false;
+  for (let md of mergeModel.conflicts()) {
+    conflict = md.conflict;
+    if (conflict) {
+      break;
+    }
+  }
+  closeTool(conflict ? 1 : 0);
 }
 
 

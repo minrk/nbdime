@@ -8,7 +8,7 @@ import {
 } from './diff';
 
 import {
-  initialize_merge
+  initialize_merge, closeMerge
 } from './merge';
 
 import {
@@ -23,6 +23,7 @@ function initialize() {
   let onclose = (ev) => { closeTool(); };
   if (getConfigOption('local') || document.getElementById('merge-local')) {
     initialize_merge();
+    onclose = closeMerge;
   } else {
     initialize_diff();
   }

@@ -124,6 +124,17 @@ class MergeDecision {
     }
   }
 
+  serialize(): IMergeDecision {
+    return {
+      common_path: this.absolutePath,
+      local_diff: this.localDiff,
+      remote_diff: this.remoteDiff,
+      action: this.action,
+      conflict: this.conflict,
+      custom_diff: this.customDiff
+    };
+  }
+
   level: number;
 }
 

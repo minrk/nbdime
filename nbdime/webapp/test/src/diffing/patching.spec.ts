@@ -44,7 +44,7 @@ describe('nbdime', () => {
 
     it('should patch a simple string addition', () => {
       let base = 'abcdef';
-      let diff = makeAddRange(3, 'ghi');
+      let diff = makePatch(0, [makeAddRange(3, 'ghi')]);
       let value = patchStringified(base, [diff]);
       expect(value.remote).to.be('abcghidef');
       expect(value.additions).to.eql([{from: 3, to: 6, source: null}]);
@@ -53,7 +53,7 @@ describe('nbdime', () => {
 
     it('should patch a simple string deletion', () => {
       let base = 'abcdef';
-      let diff = makeRemoveRange(2, 2);
+      let diff = makePatch(0, [makeRemoveRange(2, 2)]);
       let value = patchStringified(base, [diff]);
       expect(value.remote).to.be('abef');
       expect(value.additions).to.be.empty();
@@ -63,9 +63,11 @@ describe('nbdime', () => {
     it('should patch a simple string with simple escapes', () => {
       let base = 'a \"string\" with\nsome\tescapable characters';
       let diff = [
-        makeAddRange('a \"string\" with\nsome'.length,
-          '\n\tadded '),
-        makeRemoveRange('a \"string\" with\nsome'.length, 1)
+        makePatch(1, [
+          makeAddRange('some'.length, '\n'),
+          makeRemoveRange('some'.length, '\tescapable characters'.length)
+        ]),
+        makeAddRange(2, ['\tadded escapable characters']),
       ];
       // Here, level is passed as > 0, which indicates that JSON stringification should be used
       let value = patchStringified(base, diff, 1);
@@ -244,9 +246,10 @@ describe('nbdime', () => {
       ];
       let diff = makePatch(1, [
         makePatch('c', [
-          makeAddRange('this\nis\na\n'.length, 'patched'),
-          makeRemoveRange('this\nis\na\n'.length, 'valid'.length)
-        ])]);
+          makePatch(3, [
+            makeAddRange(0, 'patched'),
+            makeRemoveRange(0, 'valid'.length)
+      ])])]);
       let value = patchStringified(base, [diff]);
       expect(value.remote).to.be(
         '[\n' +

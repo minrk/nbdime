@@ -67,7 +67,7 @@ def test_ensure_common_path_one_sided_remote():
 # Here, just check that MergeDecisionBuilder uses ensure_common_path
 def test_merge_builder_ensures_common_path():
     b = MergeDecisionBuilder()
-    b.conflict(("a", "b"), "c",
+    b.conflict(("a", "b"),
                [op_patch("c", [op_remove("d")])],
                [op_patch("c", [op_remove("e")])])
     assert len(b.decisions) == 1

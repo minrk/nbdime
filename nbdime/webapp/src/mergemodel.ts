@@ -90,78 +90,20 @@ class DecisionStringDiffModel extends StringDiffModel {
    * chunks from source models where the decision is a no-op (action 'base').
    */
   getChunks(): Chunk[] {
-    type itV = [DiffRangePos, boolean];
+    let models = [this as IStringDiffModel].concat(this._sourceModels);
     let chunker = new Chunker();
-    let iter = this.iterateDiffs();
-    let oIters: StringDiffModel.DiffIter[] = [];
-    let oChs: Chunker[] = [];
-    let others: itV[] = [];
-
-    // The trick here is to iterate all the models in staggered parallel
-
-    // Make some utility functions:
-    let nextNoop = function(it: StringDiffModel.DiffIter, ch: Chunker):
-        [DiffRangePos, boolean] {
-      for (let v = it(ch.editOffset); v !== null; v = it(ch.editOffset)) {
-        if (v[0].source && v[0].source.decision.action === 'base') {
-          // Caller is responsible for adding v as dummy when ready!
-          return v;
-        }
-        ch.addDummy(v[0], v[1]);
-      }
-      return null;
-    };
-    let cmp = function(a: itV, b: itV, offsetA: number, offsetB: number) {
-      if (a === null && b === null) {
-        return 0;
-      } else if (a === null) {
-        return 1;
-      } else if (b === null) {
-        return -1;
-      }
-      let lineA = a[0].from.line  + (a[1] ? offsetA : 0);
-      let lineB = b[0].from.line  + (b[1] ? offsetB : 0);
-      if (lineA < lineB || a[0].from.ch < b[0].from.ch) {
-        return -1;
-      } else if (lineA > lineB || a[0].from.ch > b[0].from.ch) {
-        return 1;
+    let iter = new StringDiffModel.SyncedDiffIter(models);
+    for (let v = iter.next(); !iter.done; v = iter.next()) {
+      if (iter.currentModel() === this) {
+        // Chunk diffs in own model normally
+        chunker.addDiff(v.range, v.isAddition);
       } else {
-        return 0;
-      }
-    }
-    // Set up iterator and dummy chunkers for other models
-    for (let m of this._sourceModels) {
-      let it = m.iterateDiffs();
-      let ch = new Chunker();
-      oIters.push(it);
-      oChs.push(ch);
-      others.push(nextNoop(it, ch));
-    }
-    let own = iter(0);
-    for (; ; ) {
-      // Compare in base index to see which diff is next
-      // First, find minimum first of others:
-      let io: number = 0;
-      for (let i = 1; i < others.length; ++i) {
-        if (0 > cmp(others[i], others[io],
-                    oChs[i].editOffset, oChs[io].editOffset)) {
-          io = i;
+        // Skip ops in other models that are not no-ops
+        if (!v.range.source || v.range.source.decision.action !== 'base') {
+          continue;
         }
-      }
-      // Check if complete
-      if (own === null && others[io] === null) {
-        break;
-      }
-      // Next find out if other is before own
-      if (0 > cmp(own, others[io], chunker.editOffset, oChs[io].editOffset)) {
-        // Own is first
-        chunker.addDiff(own[0], own[1]);
-        own = iter(chunker.editOffset);
-      } else {
-        // Other is before own
-        chunker.addGhost(others[io][0], others[io][1]);
-        oChs[io].addDummy(others[io][0], others[io][1]);
-        others[io] = nextNoop(oIters[io], oChs[io]);
+        // Other model
+        chunker.addGhost(v.range, v.isAddition);
       }
     }
     return chunker.chunks;

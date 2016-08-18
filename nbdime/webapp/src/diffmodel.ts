@@ -164,6 +164,11 @@ export interface IStringDiffModel extends IDiffModel {
    * A function that will separate the diff into chunks.
    */
   getChunks(): Chunk[];
+
+  /**
+   * Create an iterator for iterating over the diffs in order
+   */
+  iterateDiffs(): StringDiffModel.DiffIter;
 }
 
 export
@@ -178,39 +183,6 @@ class Chunker {
   }
 
   addDiff(range: DiffRangePos, isAddition: boolean): void {
-    let linediff = this._doAdd(range, isAddition);
-    this.editOffset += isAddition ? -linediff : linediff;
-  }
-
-
-
-  /**
-   * Update editOffset from range, but don't use it for any chunks
-   */
-  addDummy(range: DiffRangePos, isAddition: boolean): void {
-    let linediff = range.to.line - range.from.line;
-    this.editOffset += isAddition ? -linediff : linediff;
-  }
-
-  /**
-   * Chunk a region where changes will occur if a currently unapplied diff were
-   * applied.
-   */
-  addGhost(range: DiffRangePos, isAddition: boolean): void {
-    this._doAdd(range, isAddition);
-  }
-
-  chunks: Chunk[];
-  editOffset: number;
-
-
-  /**
-   * Internal helper function for common code between addDiff and addGhost.
-   *
-   * Returns the linediff (difference in lines in edit/orig).
-   */
-  protected _doAdd(range: DiffRangePos, isAddition: boolean): number {
-
     let linediff = range.to.line - range.from.line;
     if (range.endsOnNewline) {
       linediff += 1;
@@ -279,8 +251,55 @@ class Chunker {
       }
       this.chunks.push(current);
     }
-    return linediff;
+    this.editOffset += isAddition ? -linediff : linediff;
   }
+
+  /**
+   * Chunk a region where changes will occur if a currently unapplied diff were
+   * applied.
+   */
+  addGhost(range: DiffRangePos, isAddition: boolean): void {
+    // Do a one-to-one chunk as base
+    let linediff = range.to.line - range.from.line;
+    if (range.endsOnNewline) {
+      linediff += 1;
+    }
+    let firstLineNew = range.from.ch === 0 && linediff > 0;
+
+    let startOffset = range.chunkStartLine ? 0 : 1;
+    let endOffset =
+      range.chunkStartLine && range.endsOnNewline && firstLineNew ?
+      0 : 1;
+
+    let current: Chunk = null;
+    if (isAddition) {
+      let startOrig = range.from.line;
+      let startEdit = startOrig + this.editOffset;
+      current = new Chunk(
+        startEdit + startOffset,
+        startEdit + endOffset,
+        startOrig + startOffset,
+        startOrig + endOffset
+      );
+    } else {
+      let startEdit = range.from.line;
+      let startOrig = startEdit - this.editOffset;
+      current = new Chunk(
+        startEdit + startOffset,
+        startEdit + endOffset,
+        startOrig + startOffset,
+        startOrig + endOffset
+      );
+    }
+    if (range.source) {
+      current.sources.push(range.source);
+    }
+    this.chunks.push(current);
+    // this._doAdd(range, isAddition);
+  }
+
+  chunks: Chunk[];
+  editOffset: number;
 }
 
 
@@ -327,45 +346,7 @@ export class StringDiffModel implements IStringDiffModel {
   }
 
   iterateDiffs(): StringDiffModel.DiffIter  {
-    let ia = 0;
-    let id = 0;
-    let additions = this.additions;
-    let deletions = this.deletions;
-    let isAddition: boolean = null;
-    let range: DiffRangePos = null;
-    return function(editOffset: number): [DiffRangePos, boolean] {
-      // Figure out which element to take next
-      if (ia < additions.length) {
-        if (id < deletions.length) {
-          let ra = additions[ia];
-          let rd = deletions[id];
-          if (ra.from.line < rd.from.line - editOffset ||
-                (ra.from.line === rd.from.line - editOffset &&
-                  ra.from.ch <= rd.from.ch)) {
-            // TODO: Character editOffset should also be used
-            isAddition = true;
-          } else {
-            isAddition = false;
-          }
-        } else {
-          // No more deletions
-          isAddition = true;
-        }
-      } else if (id < deletions.length) {
-        // No more additions
-        isAddition = false;
-      } else {
-        // Out of ranges!
-        return null;
-      }
-
-      if (isAddition) {
-        range = additions[ia++];
-      } else {
-        range = deletions[id++];
-      }
-      return [range, isAddition];
-    };
+    return new StringDiffModel.DiffIter(this);
   }
 
   /**
@@ -373,11 +354,9 @@ export class StringDiffModel implements IStringDiffModel {
    */
   getChunks(): Chunk[] {
     let chunker = new Chunker();
-    let gen = this.iterateDiffs();
-    for (let genv = gen(0); genv !== null; genv = gen(chunker.editOffset)) {
-      let range = genv[0];
-      let isAddition = genv[1];
-      chunker.addDiff(range, isAddition);
+    let i = this.iterateDiffs();
+    for (let v = i.next(); v !== null; v = i.next()) {
+      chunker.addDiff(v.range, v.isAddition);
     }
     return chunker.chunks;
   }
@@ -408,7 +387,139 @@ export class StringDiffModel implements IStringDiffModel {
 export
 namespace StringDiffModel {
   export
-  type DiffIter = (editOffset: number) => [DiffRangePos, boolean];
+  type DiffIterValue = {range: DiffRangePos, isAddition: boolean};
+
+  export
+  interface IIterator<T> {
+    next(): T;
+    done: boolean;
+  }
+
+  export
+  class DiffIter implements IIterator<DiffIterValue> {
+    constructor(model: IStringDiffModel) {
+      this.model = model;
+    }
+
+    next(): DiffIterValue {
+      // Figure out which element to take next
+      let isAddition: boolean = null;
+      let range: DiffRangePos = null;
+      let additions = this.model.additions;
+      let deletions = this.model.deletions;
+      if (this.ia < this.model.additions.length) {
+        if (this.id < deletions.length) {
+          let ra = additions[this.ia];
+          let rd = deletions[this.id];
+          if (ra.from.line < rd.from.line - this.editOffset ||
+                (ra.from.line === rd.from.line - this.editOffset &&
+                  ra.from.ch <= rd.from.ch)) {
+            // TODO: Character editOffset should also be used
+            isAddition = true;
+          } else {
+            isAddition = false;
+          }
+        } else {
+          // No more deletions
+          isAddition = true;
+        }
+      } else if (this.id < deletions.length) {
+        // No more additions
+        isAddition = false;
+      } else {
+        // Out of ranges!
+        this.done = true;
+        return null;
+      }
+
+      if (isAddition) {
+        range = additions[this.ia++];
+      } else {
+        range = deletions[this.id++];
+      }
+      let linediff = range.to.line - range.from.line;
+      if (range.endsOnNewline) {
+        linediff += 1;
+      }
+      this.editOffset += isAddition ? -linediff : linediff;
+      return {range: range, isAddition: isAddition};
+    }
+
+    editOffset = 0;
+    done = false;
+
+    protected model: IStringDiffModel;
+    protected ia = 0;
+    protected id = 0;
+  }
+
+  export
+  class SyncedDiffIter implements IIterator<DiffIterValue> {
+    static cmp(a: DiffIterValue, b: DiffIterValue,
+               offsetA: number, offsetB: number) {
+      if (a === null && b === null) {
+        return 0;
+      } else if (a === null) {
+        return 1;
+      } else if (b === null) {
+        return -1;
+      }
+      let lineA = a.range.from.line  + (a.isAddition ? offsetA : 0);
+      let lineB = b.range.from.line  + (b.isAddition ? offsetB : 0);
+      if (lineA < lineB || a.range.from.ch < b.range.from.ch) {
+        return -1;
+      } else if (lineA > lineB || a.range.from.ch > b.range.from.ch) {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+
+    constructor(models: IStringDiffModel[]) {
+      this.models = models;
+      this.iterators = [];
+      this.values = [];
+      // Set up iterator and dummy chunkers for other models
+      for (let m of models) {
+        let it = m.iterateDiffs();
+        this.iterators.push(it);
+        this.values.push(it.next());
+      }
+    }
+
+    next(): DiffIterValue {
+      // Compare in base index to see which diff is next
+      let i = 0;
+      for (let j = 1; j < this.values.length; ++j) {
+        if (0 > SyncedDiffIter.cmp(this.values[j], this.values[i],
+                                   this.iterators[j].editOffset,
+                                   this.iterators[i].editOffset)) {
+          i = j;
+        }
+      }
+      this.i = i;
+      let ret = this.values[i];
+      // Check if complete
+      if (ret === null) {
+        this.done = true;
+      } else {
+        this.values[i] = this.iterators[i].next();
+      }
+      return ret;
+    }
+
+    currentModel(): IStringDiffModel {
+      return this.models[this.i];
+    }
+
+    done = false;
+
+    protected i: number;
+
+    protected models: IStringDiffModel[];
+    protected iterators: DiffIter[];
+    protected values: DiffIterValue[];
+  }
 }
 
 

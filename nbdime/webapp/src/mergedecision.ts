@@ -263,12 +263,12 @@ function resolveAction(base: any, decision: MergeDecision): IDiffEntry[] {
       }
     }
     let d = opReplace(key, makeClearedValue(base[key]));
-    d.source = {'decision': decision, 'action': 'custom'}
+    d.source = {decision: decision, action: 'custom'}
     return [d];
   } else if (a === 'clear_parent') {
     if (typeof(base) === typeof([])) {
       let d = opRemoveRange(0, base.length);
-      d.source = {'decision': decision, 'action': 'custom'};
+      d.source = {decision: decision, action: 'custom'};
       return [d];
     } else {
       // Ideally we would do a opReplace on the parent, but this is not
@@ -276,7 +276,7 @@ function resolveAction(base: any, decision: MergeDecision): IDiffEntry[] {
       let diff: IDiffEntry[] = [];
       for (let key of base) {
         let d = opRemove(key);
-        d.source = {'decision': decision, 'action': 'custom'};
+        d.source = {decision: decision, action: 'custom'};
         diff.push(d);
       }
       return diff;
@@ -373,7 +373,7 @@ function labelSource(diff: IDiffEntry[], source: ChunkSource): IDiffEntry[] {
 }
 
 
-type DiffTree = {[prefix: string]: {'path': DecisionPath, 'diff': IDiffEntry[]}};
+type DiffTree = {[prefix: string]: {path: DecisionPath, diff: IDiffEntry[]}};
 
 /**
  * Merge a tree of diffs at varying path levels to one diff at their shared root
@@ -462,7 +462,7 @@ function buildDiffs(base: any, decisions: MergeDecision[], which: string): IDiff
     return null;
   }
   if (!tree.hasOwnProperty('/')) {
-    tree['/'] = {'diff': [], 'path': []};
+    tree['/'] = {diff: [], path: []};
     sortedPaths.push('/');
   }
 

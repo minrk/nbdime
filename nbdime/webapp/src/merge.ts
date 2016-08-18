@@ -29,10 +29,6 @@ import {
 } from 'phosphor/lib/ui/panel';
 
 import {
-  IDiffEntry
-} from './diffutil';
-
-import {
   NotebookMergeModel
 } from './mergemodel';
 
@@ -55,7 +51,7 @@ import {
 function showMerge(data: {
     base: nbformat.INotebookContent,
     merge_decisions: IMergeDecision[]
-    }) {
+    }): NotebookMergeModel {
   const transformers = [
     new JavascriptRenderer(),
     new MarkdownRenderer(),
@@ -98,9 +94,9 @@ function showMerge(data: {
  */
 function onMerge(e: Event) {
   e.preventDefault();
-  var b = (document.getElementById('merge-base') as HTMLInputElement).value;
-  var c = (document.getElementById('merge-local') as HTMLInputElement).value;
-  var r = (document.getElementById('merge-remote') as HTMLInputElement).value;
+  let b = (document.getElementById('merge-base') as HTMLInputElement).value;
+  let c = (document.getElementById('merge-local') as HTMLInputElement).value;
+  let r = (document.getElementById('merge-remote') as HTMLInputElement).value;
   requestMerge(b, c, r);
   let uri = '/merge?base=' + encodeURIComponent(b) +
     '&local=' + encodeURIComponent(c) +
@@ -115,9 +111,9 @@ function onMerge(e: Event) {
  */
 function onPopState(e: PopStateEvent) {
   if (e.state) {
-    var eb = (document.getElementById('merge-base') as HTMLInputElement);
-    var el = (document.getElementById('merge-local') as HTMLInputElement);
-    var er = (document.getElementById('merge-remote') as HTMLInputElement);
+    let eb = (document.getElementById('merge-base') as HTMLInputElement);
+    let el = (document.getElementById('merge-local') as HTMLInputElement);
+    let er = (document.getElementById('merge-remote') as HTMLInputElement);
 
     eb.value = e.state.base;
     el.value = e.state.local;
@@ -132,7 +128,7 @@ function onPopState(e: PopStateEvent) {
  */
 function requestMerge(base: string, local: string, remote: string) {
   requestJson('/api/merge',
-              {base:base, local:local, remote:remote},
+              {base: base, local: local, remote: remote},
               onMergeRequestCompleted,
               onMergeRequestFailed);
 }
@@ -158,7 +154,7 @@ function onMergeRequestFailed(response: string) {
  * Wire up callbacks.
  */
 function attachToForm() {
-  var frm = document.getElementById('nbdime-merge-form') as HTMLFormElement;
+  let frm = document.getElementById('nbdime-merge-form') as HTMLFormElement;
   if (frm) {
     frm.onsubmit = onMerge;
     // It only makes sense to listen to pop state events when the form is

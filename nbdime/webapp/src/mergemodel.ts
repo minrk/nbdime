@@ -362,13 +362,13 @@ export class CellMergeModel {
     if (!this._finalized) {
       for (let md of this.decisions) {
         if (md.action === 'either') {
-          labelSource(md.localDiff, {'decision': md, 'action': 'either'});
-          labelSource(md.remoteDiff, {'decision': md, 'action': 'either'});
+          labelSource(md.localDiff, {decision: md, action: 'either'});
+          labelSource(md.remoteDiff, {decision: md, action: 'either'});
         } else {
-          labelSource(md.localDiff, {'decision': md, 'action': 'local'});
-          labelSource(md.remoteDiff, {'decision': md, 'action': 'remote'});
+          labelSource(md.localDiff, {decision: md, action: 'local'});
+          labelSource(md.remoteDiff, {decision: md, action: 'remote'});
         }
-        labelSource(md.customDiff, {'decision': md, 'action': 'custom'});
+        labelSource(md.customDiff, {decision: md, action: 'custom'});
       }
       this._finalized = true;
     }
@@ -546,7 +546,7 @@ function splitCellChunks(mergeDecisions: MergeDecision[]): MergeDecision[] {
       nmd.remoteDiff = md.remoteDiff.slice(1);
       output.push(nmd);
     } else {
-      output.push(md);  // deepCopy?
+      output.push(md);
     }
   }
   resolveCommonPaths(output);
@@ -565,9 +565,9 @@ function splitCellRemovals(mergeDecisions: MergeDecision[]): MergeDecision[] {
     let newMd = new MergeDecision(md.absolutePath.slice(), null, null,
                                   md.action, md.conflict);
     let newDiff = [{
-        'key': key,
-        'op': DiffOp.SEQDELETE,
-        'length': 1
+        key: key,
+        op: DiffOp.SEQDELETE,
+        length: 1
     }];
     console.assert(local || remote);
     if (local) {
@@ -664,9 +664,9 @@ function splitCellInsertions(mergeDecisions: MergeDecision[]): MergeDecision[] {
                                   md.action, md.conflict);
     let key = (local ? md.localDiff : md.remoteDiff)[0].key;
     let newDiff = [{
-        'key': key,
-        'op': DiffOp.SEQINSERT,
-        'valuelist': [value]
+        key: key,
+        op: DiffOp.SEQINSERT,
+        valuelist: [value]
     }];
 
     console.assert(local || remote);
@@ -774,8 +774,8 @@ class NotebookMergeModel {
               rawMergeDecisions: IMergeDecision[]) {
     this.base = base;
     let ctor = this.constructor as typeof NotebookMergeModel;
-    this.mergeDecisions = ctor.preprocessDecisions(rawMergeDecisions);
-    this.cells = this.buildCellList();
+    let decisions = ctor.preprocessDecisions(rawMergeDecisions);
+    this.cells = this.buildCellList(decisions);
 
     // The notebook metadata MIME type is used for determining the MIME type
     // of source cells, so store it easily accessible:
@@ -815,12 +815,6 @@ class NotebookMergeModel {
   base: nbformat.INotebookContent;
 
   /**
-   * List of merge decisions defining local, remote and merge output in its
-   * entirety, given the base.
-   */
-  mergeDecisions: MergeDecision[];
-
-  /**
    * List off individual cell merges
    */
   cells: CellMergeModel[];
@@ -833,7 +827,7 @@ class NotebookMergeModel {
   /**
    * Correlate the different cells in the diff lists into a merge list
    */
-  protected buildCellList(): CellMergeModel[] {
+  protected buildCellList(decisions: MergeDecision[]): CellMergeModel[] {
     // We have to check for merge decisions on the `cells` object in
     // order to check for added cells. This assumes that the common
     // paths of the merge decisions have been resolved. It also assumes that
@@ -849,7 +843,7 @@ class NotebookMergeModel {
 
     let insertOffset = 0;
     // Assumes merge decisions come in order!
-    for (let md of this.mergeDecisions) {
+    for (let md of decisions) {
       let key = md.absolutePath;
       if (key.length < 1 || key[0] !== 'cells') {
         continue;   // Only care about decisions on cells here

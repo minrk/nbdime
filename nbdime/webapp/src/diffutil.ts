@@ -148,37 +148,37 @@ export type IDiffEntry = (IDiffAddRange | IDiffRemoveRange | IDiffPatch | IDiffA
 /** Create a replacement diff entry */
 export
 function opReplace(key: string | number, value: any): IDiffReplace {
-  return {'op': DiffOp.REPLACE, 'key': key, 'value': value};
+  return {op: DiffOp.REPLACE, key: key, value: value};
 }
 
 /** Create an addition diff entry */
 export
 function opAdd(key: string | number, value: any): IDiffAdd {
-  return {'op': DiffOp.ADD, 'key': key, 'value': value};
+  return {op: DiffOp.ADD, key: key, value: value};
 }
 
 /** Create a removal diff entry */
 export
 function opRemove(key: string | number): IDiffRemove {
-  return {'op': DiffOp.REMOVE, 'key': key};
+  return {op: DiffOp.REMOVE, key: key};
 }
 
 /** Create a removal diff entry */
 export
 function opAddRange(key: string | number, valuelist: any[]): IDiffAddRange {
-  return {'op': DiffOp.SEQINSERT, 'key': key, 'valuelist': valuelist};
+  return {op: DiffOp.SEQINSERT, key: key, valuelist: valuelist};
 }
 
 /** Create a range removal diff entry */
 export
 function opRemoveRange(key: string | number, length: number): IDiffRemoveRange {
-  return {'op': DiffOp.SEQDELETE, 'key': key, 'length': length};
+  return {op: DiffOp.SEQDELETE, key: key, length: length};
 }
 
 /** Create a range removal diff entry */
 export
 function opPatch(key: string | number, diff: IDiffEntry[]): IDiffPatch {
-  return {'op': DiffOp.PATCH, 'key': key, 'diff': diff};
+  return {op: DiffOp.PATCH, key: key, diff: diff};
 }
 
 
@@ -187,7 +187,7 @@ function opPatch(key: string | number, diff: IDiffEntry[]): IDiffPatch {
  *
  * Returns the first found entry, or null if not entry was found.
  */
-export function getDiffKey(diff: IDiffEntry[], key: string) : IDiffEntry[] {
+export function getDiffKey(diff: IDiffEntry[], key: string | number) : IDiffEntry[] {
   for (let i=0; i < diff.length; ++i) {
     if (diff[i].key === key) {
       return (diff[i] as IDiffPatch).diff;

@@ -24,12 +24,12 @@
 
 .jp-Diff-added > div:first-child {
   float: left;
-  width: 50%;
+  width: 25%;
 }
 
 .jp-Diff-deleted > div:first-child {
   float: right;
-  width: 50%;
+  width: 25%;
 }
 
 .jp-Diff-added .jp-Cellrow-metadata {

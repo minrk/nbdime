@@ -14,18 +14,20 @@ export function valueIn(value: any, array: Array<any>) {
  * Deepcopy routine for JSON-able data types
  */
 export function deepCopy(obj) {
-  if (typeof obj == 'object') {
-    if (obj instanceof Array) {
-      var l = obj.length;
-      var o = new Array(l);
-      for (var i = 0; i < l; i++) {
+  if (typeof obj === 'object') {
+    if (obj === null) {
+      return null;
+    } else if (obj instanceof Array) {
+      let l = obj.length;
+      let o = new Array(l);
+      for (let i = 0; i < l; i++) {
         o[i] = deepCopy(obj[i]);
       }
       return o;
     } else {
-      var r: any = {};
+      let r: any = {};
       r.prototype = obj.prototype;
-      for (var k in obj) {
+      for (let k in obj) {
         r[k] = deepCopy(obj[k]);
       }
       return r;
@@ -41,9 +43,9 @@ export
 function shallowCopy(orginal) {
     // First create an empty object with
     // same prototype of our original source
-    var clone = Object.create(Object.getPrototypeOf(orginal));
+    let clone = Object.create(Object.getPrototypeOf(orginal));
 
-    for (var k in orginal) {
+    for (let k in orginal) {
         // copy each property into the clone
         Object.defineProperty(clone, k,
             Object.getOwnPropertyDescriptor(orginal, k)
@@ -63,7 +65,7 @@ function arraysEqual(a: any[], b: any[]) {
   if (a.length !== b.length) {
     return false;
   }
-  for (var i = 0; i < a.length; ++i) {
+  for (let i = 0; i < a.length; ++i) {
     if (a[i] !== b[i]) {
       return false;
     }
@@ -106,8 +108,7 @@ function isPrefixArray(parent: any[], sub: any[]): boolean {
   if (sub === null || parent.length > sub.length) {
     return false;
   }
-  let i = 0;
-  for (; i < sub.length; ++i) {
+  for (let i = 0; i < parent.length; ++i) {
     if (parent[i] !== sub[i]) {
       return false;
     }

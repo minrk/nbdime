@@ -340,7 +340,7 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
 function patchString(base: string, diff: IDiffEntry[], level: number, stringifyPatch?: boolean) : StringifiedPatchResult {
   let additions: DiffRangeRaw[] = [];
   let deletions: DiffRangeRaw[] = [];
-  let baseIndex= 0;
+  let baseIndex = 0;
 
   // Short-circuit if diff is empty
   if (diff === null || diff === undefined) {

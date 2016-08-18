@@ -43,7 +43,7 @@
 .jp-Notebook-merge .CodeMirror-merge-r-chunk-end,
 .jp-Notebook-merge .CodeMirror-merge-m-chunk-end-remote { border-bottom: 1px solid #beb; }
 .jp-Notebook-merge .CodeMirror-merge-r-connect { fill: #dfd; stroke: #beb; stroke-width: 1px; }
-.jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-r-inserted { background-color: #dfd; }
+.jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-r-inserted { background-color: #beb; }
 
 .jp-Notebook-merge .CodeMirror-merge-l-chunk { background-color: #ececff; }
 .jp-Notebook-merge .CodeMirror-merge-l-chunk-start,

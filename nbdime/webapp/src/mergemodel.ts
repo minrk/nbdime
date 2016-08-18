@@ -758,6 +758,7 @@ class NotebookMergeModel {
     let ctor = this.constructor as typeof NotebookMergeModel;
     let decisions = ctor.preprocessDecisions(rawMergeDecisions);
     this.cells = this.buildCellList(decisions);
+    this.unsavedChanges = false;
 
     // The notebook metadata MIME type is used for determining the MIME type
     // of source cells, so store it easily accessible:
@@ -818,6 +819,11 @@ class NotebookMergeModel {
    * The default MIME type according to the notebook's root metadata
    */
   mimetype: string;
+
+  /**
+   * Whether there are unsaved changes
+   */
+  unsavedChanges: boolean;
 
   /**
    * Correlate the different cells in the diff lists into a merge list

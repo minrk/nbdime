@@ -187,6 +187,7 @@ function submitMerge(mergedNotebook: nbformat.INotebookContent,
  */
 function onSubmissionCompleted() {
   // TODO: Indicate success to user!
+  mergeModel.unsavedChanges = false;
 }
 
 /**
@@ -208,6 +209,9 @@ function closeMerge(ev: Event) {
     if (conflict) {
       break;
     }
+  }
+  if (mergeModel.unsavedChanges) {
+    // TODO: Ask user if he want to save
   }
   closeTool(conflict ? 1 : 0);
 }
@@ -236,5 +240,9 @@ function initialize_merge() {
   let remote = getConfigOption('remote');
   if (base && local && remote) {
     requestMerge(base, local, remote);
+  }
+  let saveBtn = document.getElementById('nbdime-save') as HTMLButtonElement;
+  if (saveBtn) {
+    saveBtn.onclick = saveMerged;
   }
 }

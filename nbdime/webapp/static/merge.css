@@ -3,6 +3,8 @@
 .jp-Notebook-merge {
   width: 90%;
   margin: auto;
+  position: relative;
+  z-index: 0;
 }
 
 
@@ -33,6 +35,10 @@
 
 .jp-Notebook-merge .jp-Output-result img {
   max-width: 100%;
+}
+
+.p-mod-drag-image {
+  background-color: white;
 }
 
 .jp-Merge-cellHeader {

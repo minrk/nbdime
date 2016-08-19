@@ -297,7 +297,6 @@ class DragOrderPanel extends Panel {
   private _evtMousemove(event: MouseEvent): void {
     // Bail if we are the one dragging.
     if (this._drag) {
-      console.log('bail');
       return;
     }
 

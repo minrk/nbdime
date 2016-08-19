@@ -210,7 +210,6 @@ class DragOrderPanel extends Panel {
         }
         node = node.parentElement;
       }
-      node = node.parentElement;
     }
     if (handle === null) {
       return -1;

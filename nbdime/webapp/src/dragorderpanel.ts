@@ -98,6 +98,13 @@ class DragOrderPanel extends Panel {
 
 
   /**
+   * Whether all direct children of the list are handles, or only those widgets
+   * designated as handles.
+   */
+  childrenAreDragHandles = false;
+
+
+  /**
    * Handle the DOM events for the widget.
    *
    * @param event - The DOM event sent to the widget.
@@ -140,11 +147,14 @@ class DragOrderPanel extends Panel {
    * The default implementation simply emits the `dropped` signal.
    */
   protected onMove(from: number, to: number): void {
-    if (to > from) {
-      to -= 1;
+    if (to !== from) {
+      let adjTo = to;
+      if (adjTo > from) {
+        adjTo -= 1;
+      }
+      this.insertWidget(adjTo, this.widgets.at(from));
+      this.moved.emit({from: from, to: to});
     }
-    this.insertWidget(to, this.widgets.at(from));
-    this.moved.emit({from: from, to: to});
   }
 
   /**
@@ -183,16 +193,22 @@ class DragOrderPanel extends Panel {
         return i;
       }
     }
-    return null;
+    return -1;
   }
 
   protected findDragTarget(node: HTMLElement): number {
-    // First, traverse up DOM to check if click is on a drag handleEvent
     let handle: HTMLElement = null;
-    while (node && node !== this.node) {
-      if (node.classList.contains(DRAG_HANDLE)) {
-        handle = node;
-        break;
+    if (this.childrenAreDragHandles) {
+      // Simple scenario, just look for node among children
+      handle = node;
+    } else {
+      // First, traverse up DOM to check if click is on a drag handleEvent
+      while (node && node !== this.node) {
+        if (node.classList.contains(DRAG_HANDLE)) {
+          handle = node;
+          break;
+        }
+        node = node.parentElement;
       }
       node = node.parentElement;
     }
@@ -200,7 +216,7 @@ class DragOrderPanel extends Panel {
       return -1;
     }
     // Next, continue from handle to a child
-    let child =  this.findChild(handle);
+    let child = this.findChild(handle);
     return this.getIndexOfChildNode(child);
   }
 
@@ -348,6 +364,10 @@ class DragOrderPanel extends Panel {
       target = target.parentElement;
     }
     let targetIndex = this.getIndexOfChildNode(target);
+    if (targetIndex === -1) {
+      // Invalid target somehow
+      return;
+    }
 
     // We have an acceptable drop, handle:
     this.onMove(sourceIndex, targetIndex);

@@ -38,6 +38,10 @@ import {
 } from './util';
 
 import {
+  DragOrderPanel
+} from './dragorderpanel';
+
+import {
   CellDiffModel, NotebookDiffModel, IDiffModel,
   IStringDiffModel, StringDiffModel, OutputDiffModel
 } from './diffmodel';
@@ -543,7 +547,11 @@ class CellMergeWidget extends Panel {
 
     let header = new Panel();
     header.addClass('jp-Merge-cell-header');
-    let w = new Widget();
+
+    let w = DragOrderPanel.createDefaultHandle();
+    header.addWidget(w);
+
+    w = new Widget();
     this.headerTitleWidget = w;
     header.addWidget(w);
     this.deleteToggle = document.createElement('input');
@@ -678,13 +686,13 @@ class CellMergeWidget extends Panel {
  * NotebookMergeWidget
  */
 export
-class NotebookMergeWidget extends Widget {
+class NotebookMergeWidget extends DragOrderPanel {
   constructor(model: NotebookMergeModel,
               rendermime: RenderMime) {
     super();
     this._model = model;
     this._rendermime = rendermime;
-    let layout = this.layout = new PanelLayout();
+    let layout = this.layout as PanelLayout;
 
     this.addClass(NBMERGE_CLASS);
 
@@ -704,6 +712,12 @@ class NotebookMergeWidget extends Widget {
    */
   get model(): NotebookMergeModel {
     return this._model;
+  }
+
+  protected onMove(from: number, to: number): void {
+    // Move cell in model list
+    this._model.cells.splice(to, 0, this._model.cells.splice(from, 1)[0]);
+    super.onMove(from, to);
   }
 
   private _model: NotebookMergeModel;

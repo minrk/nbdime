@@ -35,6 +35,15 @@
   max-width: 100%;
 }
 
+.jp-Merge-cell-header > .p-Widget {
+  display: inline-block;
+}
+
+.jp-Notebook-merge .jp-DragOrderPanel-dragHandle {
+  height: 18px;
+  width: 12px;
+}
+
 .jp-Notebook-merge .CodeMirror-merge-spacer { background-color: #eee; }
 
 .jp-Notebook-merge .CodeMirror-merge-r-chunk { background-color: #dfd; }

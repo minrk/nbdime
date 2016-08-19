@@ -154,7 +154,7 @@ class DragOrderPanel extends Panel {
   /**
    * Called when something has been dropped in the panel.
    *
-   * The default implementation simply emits the `dropped` signal.
+   * The default implementation moves the widget then emits the `moved` signal.
    */
   protected onMove(from: number, to: number): void {
     if (to !== from) {

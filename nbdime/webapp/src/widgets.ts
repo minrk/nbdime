@@ -57,6 +57,8 @@ const NBMERGE_CLASS = 'jp-Notebook-merge';
 const ROOT_METADATA_CLASS = 'jp-Metadata-diff';
 const CELLDIFF_CLASS = 'jp-Cell-diff';
 const CELLMERGE_CLASS = 'jp-Cell-merge';
+const CELL_HEADER_CLASS = 'jp-Merge-cellHeader';
+const CELL_HEADER_TITLE_CLASS = 'jp-Merge-cellHeader-title';
 
 const SOURCE_ROW_CLASS = 'jp-Cellrow-source';
 const METADATA_ROW_CLASS = 'jp-Cellrow-metadata';
@@ -546,14 +548,19 @@ class CellMergeWidget extends Panel {
     let CURR_CLASSES = MERGE_CLASSES.slice();  // copy
 
     let header = new Panel();
-    header.addClass('jp-Merge-cell-header');
+    header.addClass(CELL_HEADER_CLASS);
 
+    // Add drag handle
     let w = DragOrderPanel.createDefaultHandle();
     header.addWidget(w);
 
+    // Add title widget
     w = new Widget();
     this.headerTitleWidget = w;
+    w.addClass(CELL_HEADER_TITLE_CLASS);
     header.addWidget(w);
+
+    // Add "delete cell" checkbox
     this.deleteToggle = document.createElement('input');
     this.deleteToggle.setAttribute('type', 'checkbox');
     this.deleteToggle.checked = this.model.deleteCell;

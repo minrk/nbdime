@@ -35,8 +35,13 @@
   max-width: 100%;
 }
 
-.jp-Merge-cell-header > .p-Widget {
-  display: inline-block;
+.jp-Merge-cellHeader {
+  display: flex;
+  background-color: #f7f7f7; /* Matches CodeMirror gutter */
+}
+
+.jp-Merge-cellHeader-title {
+  flex-grow: 1;
 }
 
 .jp-Notebook-merge .jp-DragOrderPanel-dragHandle {

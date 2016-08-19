@@ -27,14 +27,15 @@ import {
 } from 'phosphor/lib/dom/dragdrop';
 
 
-
+/**
+ * The class name added to the DragOrderPanel
+ */
 const PANEL_CLASS = 'jp-DragOrderPanel';
 
 /**
  * The class name added to something which can be used to drag a box
  */
 const DRAG_HANDLE = 'jp-mod-dragHandle';
-
 
 /**
  * The class name of the default drag handle
@@ -59,6 +60,9 @@ const DRAG_THRESHOLD = 5;
 
 
 
+/**
+ * A panel which allows the user to rearrange elements
+ */
 export
 class DragOrderPanel extends Panel {
 
@@ -70,8 +74,8 @@ class DragOrderPanel extends Panel {
   /**
    * Mark a widget as a drag handle.
    *
-   * Using this, any widget can be a drag handle, as long as mouse events are
-   * propagated from it to the DragOrderPanel.
+   * Using this, any child-widget can be a drag handle, as long as mouse events
+   * are propagated from it to the DragOrderPanel.
    */
   static makeHandle(handle: Widget) {
     handle.addClass(DRAG_HANDLE);
@@ -94,6 +98,12 @@ class DragOrderPanel extends Panel {
     return widget;
   }
 
+  /**
+   * Signal that is emitted after the widgets have been moved.
+   *
+   * The first argument is the panel in which the moved happened.
+   * The second argument is the old and the new positions of the child-widget.
+   */
   moved: ISignal<DragOrderPanel, {from: number, to: number}>;
 
 
@@ -186,6 +196,11 @@ class DragOrderPanel extends Panel {
     document.removeEventListener('mouseup', this, true);
   }
 
+  /**
+   * Returns the index of node in `layout.widgets`.
+   *
+   * Returns -1 if not found.
+   */
   protected getIndexOfChildNode(node: HTMLElement) {
     let layout = this.layout as PanelLayout;
     for (let i = 0; i < layout.widgets.length; i++) {
@@ -196,6 +211,12 @@ class DragOrderPanel extends Panel {
     return -1;
   }
 
+  /**
+   * Check whether node is a valid drag handle.
+   *
+   * Returns the index of the direct child which `node` belongs to if it is a
+   * valid handle. If not, it returns -1.
+   */
   protected findDragTarget(node: HTMLElement): number {
     let handle: HTMLElement = null;
     if (this.childrenAreDragHandles) {
@@ -219,6 +240,11 @@ class DragOrderPanel extends Panel {
     return this.getIndexOfChildNode(child);
   }
 
+  /**
+   * Find the direct child node which is the parent (or is equal to) node.
+   *
+   * Returns null if not found.
+   */
   protected findChild(node: HTMLElement): HTMLElement {
     // Work our way up the DOM to an element which has this node as parent
     let child = null;

@@ -132,7 +132,7 @@
   background-color: #ffdddd;
 }
 
-.jp-Cell-merge.jp-mod-todelete > .p-Widget:last-child {
+.jp-Cell-merge.jp-mod-todelete > .p-Widget:not(.jp-Merge-cellHeader) {
   opacity: 0.5;
   filter: alpha(opacity = 50);
 }

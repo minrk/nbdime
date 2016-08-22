@@ -18,17 +18,15 @@ import {
 } from './patch';
 
 import {
+  ChunkSource
+} from './chunking';
+
+import {
   deepCopy, valueIn, isPrefixArray, findSharedPrefix
 } from './util';
 
 export
 type DecisionPath = (string | number)[];
-
-export
-type ChunkSource = {
-  decision: MergeDecision;
-  action: 'local' | 'remote' | 'either' | 'custom' | 'mixed';
-};
 
 export
 interface IMergeDecision {

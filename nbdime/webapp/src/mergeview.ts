@@ -11,7 +11,7 @@ import * as CodeMirror from 'codemirror';
 import 'codemirror/addon/display/autorefresh';
 
 import {
-  IStringDiffModel, Chunk
+  IStringDiffModel
 } from './diffmodel';
 
 import {
@@ -23,8 +23,8 @@ import {
 } from './diffutil';
 
 import {
-  ChunkSource
-} from './mergedecision';
+  ChunkSource, Chunk, lineToNormalChunks
+} from './chunking';
 
 import {
   valueIn
@@ -106,7 +106,8 @@ class DiffView {
     this.edit.on('gutterClick', this.onGutterClick.bind(this));
     this.orig.on('gutterClick', this.onGutterClick.bind(this));
 
-    this.chunks = this.model.getChunks();
+    this.lineChunks = this.model.getLineChunks();
+    this.chunks = lineToNormalChunks(this.lineChunks);
     this.dealigned = false;
 
     this.showDifferences = options.showDifferences !== false;
@@ -207,7 +208,8 @@ class DiffView {
   syncModel() {
     if (this.modelInvalid()) {
       this.orig.setValue(this.model.remote);
-      this.chunks = this.model.getChunks();
+      this.lineChunks = this.model.getLineChunks();
+      this.chunks = lineToNormalChunks(this.lineChunks);
     }
   }
 
@@ -435,6 +437,7 @@ class DiffView {
   orig: CodeMirror.Editor;
   edit: CodeMirror.Editor;
   chunks: Chunk[];
+  lineChunks: Chunk[];
   copyButtons: HTMLElement;
   lockButton: HTMLElement;
   gap: HTMLElement;
@@ -516,6 +519,23 @@ function getMatchingOrigLine(editLine: number, chunks: Chunk[]): number {
   return editLine + (origStart - editStart);
 }
 
+
+function getMatchingOrigLineLC(editLine: number, chunks: Chunk[]): number {
+  for (let i = 0; i < chunks.length; i++) {
+    let chunk = chunks[i];
+    if (chunk.editFrom === editLine) {
+      return chunk.origFrom;
+    } else if (chunk.editTo === editLine) {
+      return chunk.origTo;
+    }
+    if (chunk.editFrom > editLine) {
+      break;
+    }
+  }
+  return editLine;
+}
+
+
 /**
  * Find which line numbers align which each other, in the
  * set of DiffViews. The returned array is of the format:
@@ -525,27 +545,53 @@ function getMatchingOrigLine(editLine: number, chunks: Chunk[]): number {
  */
 function findAlignedLines(dvs: DiffView[]): number[][] {
   let linesToAlign: number[][] = [];
+  let ignored: number[] = [];
 
   // First fill directly from first DiffView
   let dv = dvs[0];
   let others = dvs.slice(1);
-  for (let i = 0; i < dv.chunks.length; i++) {
-    let chunk = dv.chunks[i];
+  for (let i = 0; i < dv.lineChunks.length; i++) {
+    let chunk = dv.lineChunks[i];
     let lines = [chunk.editTo, chunk.origTo];
     for (let o of others) {
-      lines.push(getMatchingOrigLine(chunk.editTo, o.chunks));
+      lines.push(getMatchingOrigLineLC(chunk.editTo, o.lineChunks));
     }
-    linesToAlign.push(lines);
+    if (linesToAlign.length > 0 &&
+        linesToAlign[linesToAlign.length - 1][0] === lines[0]) {
+      let last = linesToAlign[linesToAlign.length - 1];
+      for (let j = 0; j < lines.length; ++j) {
+        last[j] = Math.max(last[j], lines[j]);
+      }
+    } else {
+      if (linesToAlign.length > 0) {
+        let prev = linesToAlign[linesToAlign.length - 1];
+        let diff = lines[0] - prev[0];
+        for (let j = 1; j < lines.length; ++j) {
+          if (diff !== lines[j] - prev[j]) {
+            diff = null;
+            break;
+          }
+        }
+        if (diff === null) {
+          linesToAlign.push(lines);
+        } else {
+          ignored.push(lines[0]);
+          continue;
+        }
+      } else {
+        linesToAlign.push(lines);
+      }
+    }
   }
   // Then fill any chunks from remaining DiffView, which are not already added
   for (let o = 0; o < others.length; o++) {
-    for (let i = 0; i < others[o].chunks.length; i++) {
-      let chunk = others[o].chunks[i];
+    for (let i = 0; i < others[o].lineChunks.length; i++) {
+      let chunk = others[o].lineChunks[i];
       // Check agains existing matches to see if already consumed:
       let j = 0;
       for (; j < linesToAlign.length; j++) {
         let align = linesToAlign[j];
-        if (align[0] === chunk.editTo) {
+        if (align[0] === chunk.editTo || valueIn(chunk.editTo, ignored)) {
           // Chunk already consumed, continue to next chunk
           j = -1;
           break;
@@ -556,12 +602,13 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
         }
       }
       if (j > -1) {
-        let lines = [chunk.editTo, getMatchingOrigLine(chunk.editTo, dv.chunks)];
+        let lines = [chunk.editTo,
+                     getMatchingOrigLineLC(chunk.editTo, dv.lineChunks)];
         for (let k = 0; k < others.length; k++) {
           if (k === o) {
             lines.push(chunk.origTo);
           } else {
-            lines.push(getMatchingOrigLine(chunk.editTo, others[k].chunks));
+            lines.push(getMatchingOrigLineLC(chunk.editTo, others[k].lineChunks));
           }
         }
         linesToAlign.splice(j - 1, 0, lines);
@@ -690,7 +737,7 @@ class MergeView {
         var leftPane = elt('div', 'Value missing',
                            'CodeMirror-merge-pane jp-mod-missing');
       } else {
-        left = this.left = new DiffView(local, 'left', this.alignChunks.bind(this));
+        left = this.left = new DiffView(local, 'left', this.alignViews.bind(this));
         this.diffViews.push(left);
         var leftPane = elt('div', null, 'CodeMirror-merge-pane');
       }
@@ -711,7 +758,7 @@ class MergeView {
         var rightPane = elt('div', 'Value missing',
                             'CodeMirror-merge-pane jp-mod-missing');
       } else {
-        right = this.right = new DiffView(remote, 'right', this.alignChunks.bind(this));
+        right = this.right = new DiffView(remote, 'right', this.alignViews.bind(this));
         this.diffViews.push(right);
         var rightPane = elt('div', null, 'CodeMirror-merge-pane');
         // wrap.push(right.buildGap());
@@ -721,7 +768,7 @@ class MergeView {
 
       wrap.push(elt('div', null, 'CodeMirror-merge-clear', 'height: 0; clear: both;'));
 
-      merge = this.merge = new DiffView(merged, 'merge', this.alignChunks.bind(this));
+      merge = this.merge = new DiffView(merged, 'merge', this.alignViews.bind(this));
       this.diffViews.push(merge);
       var mergePane = elt('div', null, 'CodeMirror-merge-pane');
       mergePane.className += ' CodeMirror-merge-pane-final';
@@ -743,7 +790,7 @@ class MergeView {
         }
         var panes = 1;
       } else {
-        right = this.right = new DiffView(remote, 'right', this.alignChunks.bind(this));
+        right = this.right = new DiffView(remote, 'right', this.alignViews.bind(this));
         this.diffViews.push(right);
         var rightPane = elt('div', null, 'CodeMirror-merge-pane');
         rightPane.className += ' CodeMirror-merge-pane-remote';
@@ -783,7 +830,7 @@ class MergeView {
     }
   }
 
-  alignChunks(force?: boolean) {
+  alignViews(force?: boolean) {
     let dealigned = false;
     if (!this.initialized) {
       return;
@@ -923,10 +970,12 @@ function unclearNearChunks(dv: DiffView, margin: number, off: number, clear: boo
 
 function collapseIdenticalStretches(mv: MergeView, margin: boolean | number): void {
   // FIXME: Use all panes
-  if (typeof margin != 'number') {
+  if (typeof margin !== 'number') {
     margin = 2;
   }
-  var clear = [], edit = mv.base, off = edit.getDoc().firstLine();
+  let clear = [];
+  let edit = mv.base;
+  let off = edit.getDoc().firstLine();
   for (let l = off, e = edit.getDoc().lastLine(); l <= e; l++) {
     clear.push(true);
   }
@@ -943,7 +992,8 @@ function collapseIdenticalStretches(mv: MergeView, margin: boolean | number): vo
   for (let i = 0; i < clear.length; i++) {
     if (clear[i]) {
       let line = i + off;
-      for (var size = 1; i < clear.length - 1 && clear[i + 1]; i++, size++) {
+      let size = 1;
+      for (; i < clear.length - 1 && clear[i + 1]; i++, size++) {
         // Just finding size
       }
       if (size > margin) {

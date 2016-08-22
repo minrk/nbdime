@@ -12,7 +12,7 @@ import {
 
 import {
   CellDiffModel, createAddedCellDiffModel, StringDiffModel, IStringDiffModel,
-  createDeletedCellDiffModel, createPatchedCellDiffModel, Chunker, Chunk,
+  createDeletedCellDiffModel, createPatchedCellDiffModel,
   createUnchangedCellDiffModel, setMimetypeFromCellType
 } from './diffmodel';
 
@@ -20,6 +20,10 @@ import {
   IMergeDecision, MergeDecision, resolveCommonPaths, buildDiffs, labelSource,
   filterDecisions, pushPatchDecision, popPath, applyDecisions
 } from './mergedecision';
+
+import {
+   LineChunker, Chunk,
+} from './chunking';
 
 import {
   stringify, patchStringified
@@ -89,9 +93,9 @@ class DecisionStringDiffModel extends StringDiffModel {
    * Chunk additions/deletions into line-based chunks, while also producing
    * chunks from source models where the decision is a no-op (action 'base').
    */
-  getChunks(): Chunk[] {
+  getLineChunks(): Chunk[] {
     let models = [this as IStringDiffModel].concat(this._sourceModels);
-    let chunker = new Chunker();
+    let chunker = new LineChunker();
     let iter = new StringDiffModel.SyncedDiffIter(models);
     for (let v = iter.next(); !iter.done; v = iter.next()) {
       if (iter.currentModel() === this) {
@@ -103,7 +107,7 @@ class DecisionStringDiffModel extends StringDiffModel {
           continue;
         }
         // Other model
-        chunker.addGhost(v.range, v.isAddition);
+        chunker.addGhost(v.range, v.isAddition, iter.currentOffset());
       }
     }
     return chunker.chunks;

@@ -12,66 +12,13 @@ import {
 } from './diffutil';
 
 import {
-  ChunkSource
-} from './mergedecision';
-
-import {
-  valueIn
-} from './util';
+  Chunk, LineChunker
+} from './chunking';
 
 import {
   patchStringified, stringify, patch
 } from './patch';
 
-// CHUNKING
-
-/**
- * A chunk is a range of lines in a string based diff
- * that logically belong together.
- *
- * Chunks can be used for:
- *  - Correlating diff entries in the base and remote, e.g.
- *    for aligning lines in two editors.
- *  - Finding parts of the unchanged text that are not needed
- *    as context (can be hidden)
- *  - Navigating a diff ("Go to next diff")
- */
-export class Chunk {
-  constructor(
-      public editFrom: number,
-      public editTo: number,
-      public origFrom: number,
-      public origTo: number,
-      source?: ChunkSource) {
-    this.sources = source ? [source] : [];
-  }
-
-  /**
-   * Indicates the source of a chunk in a merge condition.
-   *
-   * For merged content this can be used to indicate whther the chunk originates
-   * from base, local, remote or somewhere else.
-   */
-  sources: ChunkSource[];
-
-  /**
-   * Checks whether the given line number is within the range spanned by editFrom - editTo
-   */
-  inEdit(line: number) {
-    return line >= this.editFrom && line <= this.editTo;
-  }
-
-  /**
-   * Checks whether the given line number is within the range spanned by origFrom - origTo
-   */
-  inOrig(line: number) {
-    return line >= this.origFrom && line <= this.origTo;
-  }
-
-  /**
-   *
-   */
-};
 
 
 // DIFF MODELS:
@@ -159,147 +106,15 @@ export interface IStringDiffModel extends IDiffModel {
    */
   deletions: DiffRangePos[];
 
-
   /**
    * A function that will separate the diff into chunks.
    */
-  getChunks(): Chunk[];
+  getLineChunks(): Chunk[];
 
   /**
    * Create an iterator for iterating over the diffs in order
    */
   iterateDiffs(): StringDiffModel.DiffIter;
-}
-
-export
-class Chunker {
-  constructor() {
-    this.chunks = [];
-    this.editOffset = 0;
-  }
-
-  protected _getCurrent() {
-    return this.chunks.length > 0 ? this.chunks[this.chunks.length - 1] : null;
-  }
-
-  addDiff(range: DiffRangePos, isAddition: boolean): void {
-    let linediff = range.to.line - range.from.line;
-    if (range.endsOnNewline) {
-      linediff += 1;
-    }
-    let firstLineNew = range.from.ch === 0 && linediff > 0;
-
-    let startOffset = range.chunkStartLine ? 0 : 1;
-    let endOffset =
-      range.chunkStartLine && range.endsOnNewline && firstLineNew ?
-      0 : 1;
-
-    let current = this._getCurrent();
-    if (current) {
-      // Have existing chunk, check for overlap
-      if (isAddition) {
-        if (current.inOrig(range.from.line)) {
-          current.origTo = Math.max(current.origTo,
-              range.to.line + endOffset + linediff);
-          current.editTo = Math.max(current.editTo,
-              range.to.line + endOffset + this.editOffset);
-          if (range.source && !valueIn(range.source, current.sources)) {
-            current.sources.push(range.source);
-          }
-        } else {
-          // No overlap with chunk, start new one
-          current = null;
-        }
-      } else {
-        if (current.inEdit(range.from.line)) {
-          current.origTo = Math.max(current.origTo,
-              range.to.line + endOffset - this.editOffset);
-          current.editTo = Math.max(current.editTo,
-              range.to.line + endOffset + linediff);
-          if (range.source && !valueIn(range.source, current.sources)) {
-            current.sources.push(range.source);
-          }
-        } else {
-          // No overlap with chunk, start new one
-          current = null;
-        }
-      }
-    }
-    if (!current) {
-      // No current chunk, start a new one
-      if (isAddition) {
-        let startOrig = range.from.line;
-        let startEdit = startOrig + this.editOffset;
-        current = new Chunk(
-          startEdit + startOffset,
-          startEdit + endOffset,
-          startOrig + startOffset,
-          startOrig + endOffset + linediff
-        );
-      } else {
-        let startEdit = range.from.line;
-        let startOrig = startEdit - this.editOffset;
-        current = new Chunk(
-          startEdit + startOffset,
-          startEdit + endOffset + linediff,
-          startOrig + startOffset,
-          startOrig + endOffset
-        );
-      }
-      if (range.source) {
-        current.sources.push(range.source);
-      }
-      this.chunks.push(current);
-    }
-    this.editOffset += isAddition ? -linediff : linediff;
-  }
-
-  /**
-   * Chunk a region where changes will occur if a currently unapplied diff were
-   * applied.
-   */
-  addGhost(range: DiffRangePos, isAddition: boolean): void {
-    // Do a one-to-one chunk as base
-    let linediff = range.to.line - range.from.line;
-    if (range.endsOnNewline) {
-      linediff += 1;
-    }
-    let firstLineNew = range.from.ch === 0 && linediff > 0;
-
-    let startOffset = range.chunkStartLine ? 0 : 1;
-    let endOffset =
-      range.chunkStartLine && range.endsOnNewline && firstLineNew ?
-      0 : 1;
-
-    let current: Chunk = null;
-    if (isAddition) {
-      let startOrig = range.from.line;
-      let startEdit = startOrig + this.editOffset;
-      current = new Chunk(
-        startEdit + startOffset,
-        startEdit + endOffset,
-        startOrig + startOffset,
-        startOrig + endOffset
-      );
-    } else {
-      let startEdit = range.from.line;
-      let startOrig = startEdit - this.editOffset;
-      current = new Chunk(
-        startEdit + startOffset,
-        startEdit + endOffset,
-        startOrig + startOffset,
-        startOrig + endOffset
-      );
-    }
-    if (range.source) {
-      current.sources.push(range.source);
-    }
-    this.chunks.push(current);
-    // this._doAdd(range, isAddition);
-  }
-
-  chunks: Chunk[];
-  editOffset: number;
 }
 
 
@@ -352,8 +167,8 @@ export class StringDiffModel implements IStringDiffModel {
   /**
    * Chunk additions/deletions into line-based chunks
    */
-  getChunks(): Chunk[] {
-    let chunker = new Chunker();
+  getLineChunks(): Chunk[]{
+    let chunker = new LineChunker();
     let i = this.iterateDiffs();
     for (let v = i.next(); v !== null; v = i.next()) {
       chunker.addDiff(v.range, v.isAddition);
@@ -506,6 +321,10 @@ namespace StringDiffModel {
         this.values[i] = this.iterators[i].next();
       }
       return ret;
+    }
+
+    currentOffset(): number {
+      return this.iterators[this.i].editOffset;
     }
 
     currentModel(): IStringDiffModel {

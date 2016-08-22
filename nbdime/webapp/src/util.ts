@@ -40,18 +40,21 @@ export function deepCopy(obj) {
  * Shallow copy routine for objects
  */
 export
-function shallowCopy(orginal) {
-    // First create an empty object with
-    // same prototype of our original source
-    let clone = Object.create(Object.getPrototypeOf(orginal));
+function shallowCopy(original) {
+  // First create an empty object with
+  // same prototype of our original source
+  let clone = Object.create(Object.getPrototypeOf(original));
 
-    for (let k in orginal) {
-        // copy each property into the clone
-        Object.defineProperty(clone, k,
-            Object.getOwnPropertyDescriptor(orginal, k)
-        );
+  for (let k in original) {
+    if (original[k].constructor === Function) {
+      continue;
     }
-    return clone;
+    // copy each property into the clone
+    Object.defineProperty(clone, k,
+      Object.getOwnPropertyDescriptor(original, k)
+    );
+  }
+  return clone;
 }
 
 export

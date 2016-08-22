@@ -10,7 +10,7 @@ import {
 
 import {
   ChunkSource
-} from './mergedecision';
+} from './chunking';
 
 /**
  * The indentation to use for JSON stringify.

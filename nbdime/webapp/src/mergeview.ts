@@ -687,7 +687,8 @@ class MergeView {
       if (local.remote === null) {
         // Local value was deleted
         left = this.left = null;
-        var leftPane = elt('div', 'Value missing', 'CodeMirror-merge-pane');
+        var leftPane = elt('div', 'Value missing',
+                           'CodeMirror-merge-pane jp-mod-missing');
       } else {
         left = this.left = new DiffView(local, 'left', this.alignChunks.bind(this));
         this.diffViews.push(left);
@@ -707,7 +708,8 @@ class MergeView {
       if (remote.remote === null) {
         // Remote value was deleted
         right = this.right = null;
-        var rightPane = elt('div', 'Value missing', 'CodeMirror-merge-pane');
+        var rightPane = elt('div', 'Value missing',
+                            'CodeMirror-merge-pane jp-mod-missing');
       } else {
         right = this.right = new DiffView(remote, 'right', this.alignChunks.bind(this));
         this.diffViews.push(right);

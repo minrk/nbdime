@@ -46,6 +46,10 @@
   background-color: #f7f7f7; /* Matches CodeMirror gutter */
 }
 
+.jp-Merge-cellHeader > .p-Widget {
+  margin-right: .5em;
+}
+
 .jp-Merge-cellHeader-title {
   flex-grow: 1;
 }
@@ -72,6 +76,10 @@
 .jp-Notebook-merge .CodeMirror-merge-m-chunk-end-local { border-bottom: 1px solid #cbcbf8; }
 .jp-Notebook-merge .CodeMirror-merge-l-connect { fill: #ececff; stroke: #cbcbf8; stroke-width: 1px; }
 .jp-Notebook-merge .CodeMirror-line .CodeMirror-merge-l-inserted { background-color: #cbcbf8 }
+
+
+.CodeMirror-merge-m-chunk-start-either { border-top: 1px solid #aee; }
+.CodeMirror-merge-m-chunk-end-either { border-bottom: 1px solid #aee }
 
 .CodeMirror-merge-pane-base .CodeMirror-line .CodeMirror-merge-m-deleted,
 .CodeMirror-merge-pane-base .CodeMirror-line .CodeMirror-merge-l-deleted,
@@ -117,6 +125,19 @@
 }
 
 .jp-Merge-conflict {
+  background-color: #ffdddd;
+}
+
+.CodeMirror-merge-pane.jp-mod-missing {
+  background-color: #ffdddd;
+}
+
+.jp-Cell-merge.jp-mod-todelete > .p-Widget:last-child {
+  opacity: 0.5;
+  filter: alpha(opacity = 50);
+}
+
+.jp-Cell-merge.jp-mod-todelete .jp-Merge-cellHeader {
   background-color: #ffdddd;
 }
 

@@ -344,11 +344,14 @@ export class CellMergeModel {
         throw 'Currently not able to handle decisions on cell variable \"' +
               d.key + '\"';
       }
+      let action = md.action === 'base' ?
+        local ? 'local' : 'remote' :
+        md.action;
       out.push(new MergeDecision(
         md.absolutePath.concat([patch.key]),
         local ? [d] : null,
         local ? null : [d],
-        md.action,
+        action,
         md.conflict));
     }
     return out;
@@ -423,13 +426,14 @@ export class CellMergeModel {
           this._local = createDeletedCellDiffModel(this.base, this.mimetype);
           this._remote = createDeletedCellDiffModel(this.base, this.mimetype);
           this._merged = createDeletedCellDiffModel(this.base, this.mimetype);
+          this.deleteCell = valueIn(md.action, ['local', 'remote', 'either']);
         }
       } else {
         // 3., by method of elimination
         let ops = [md.localDiff[0].op, md.remoteDiff[0].op];
         console.assert(
           valueIn(DiffOp.SEQDELETE, ops) && valueIn(DiffOp.PATCH, ops));
-        if (ops[0] === DiffOp.REMOVE) {
+        if (ops[0] === DiffOp.SEQDELETE) {
           this._local = createDeletedCellDiffModel(this.base, this.mimetype);
           this.deleteCell = md.action === 'local';
           // The patch op will be on cell level. Split it on sub keys!
@@ -707,7 +711,7 @@ function splitCellInsertions(mergeDecisions: MergeDecision[]): MergeDecision[] {
             output.push(makeSplitPart(md, c, true, false));
           }
           for (let c of dr.valuelist as any[]) {
-            output.push(makeSplitPart(md, c, true, false));
+            output.push(makeSplitPart(md, c, false, true));
           }
         }
       }

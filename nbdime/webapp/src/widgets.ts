@@ -60,6 +60,8 @@ const CELLMERGE_CLASS = 'jp-Cell-merge';
 const CELL_HEADER_CLASS = 'jp-Merge-cellHeader';
 const CELL_HEADER_TITLE_CLASS = 'jp-Merge-cellHeader-title';
 
+const MARKED_DELETE = 'jp-mod-todelete';
+
 const SOURCE_ROW_CLASS = 'jp-Cellrow-source';
 const METADATA_ROW_CLASS = 'jp-Cellrow-metadata';
 const OUTPUTS_ROW_CLASS = 'jp-Cellrow-outputs';
@@ -564,8 +566,16 @@ class CellMergeWidget extends Panel {
     this.deleteToggle = document.createElement('input');
     this.deleteToggle.setAttribute('type', 'checkbox');
     this.deleteToggle.checked = this.model.deleteCell;
+    if (this.model.deleteCell) {
+      this.addClass(MARKED_DELETE);
+    }
     this.deleteToggle.onchange = (event) => {
       this.model.deleteCell = this.deleteToggle.checked;
+      if (this.model.deleteCell) {
+        this.addClass(MARKED_DELETE);
+      } else {
+        this.removeClass(MARKED_DELETE);
+      }
     };
     w = new Widget();
     let label = document.createElement('label');
@@ -578,7 +588,7 @@ class CellMergeWidget extends Panel {
     this.header = header;
 
     /*
-     1. Unchanged or one way insert/delete of cell:
+     1. Unchanged or one way insert/delete of cell, or identical insert/delete:
         Single r/w editor (merged), with appropriate coloring for insert/delete
      2. Everything else:
         Full 4x merge view
@@ -593,16 +603,25 @@ class CellMergeWidget extends Panel {
       this.headerTitle = radd ? 'Cell added remotely' : 'Cell deleted remotely';
     }
 
-    if (valueIn(null, model.subModels) || (
+    if (valueIn(null, model.subModels) || (  // One sided change
           model.local.unchanged && model.remote.unchanged &&
-          model.merged.unchanged) ||
-          model.local.added !== model.remote.added) {
+          model.merged.unchanged) ||  // Unchanged
+          model.local.added !== model.remote.added ||  // Onesided addition
+          model.local.added ||  // Implies identical addition
+          model.local.deleted && model.remote.deleted   // Deletion on both
+          ) {
       let view = CellDiffWidget.createView(
         model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
       if (ladd && !radd || ldel && !rdel) {
         this.addClass('jp-Merge-oneway-local');
       } else if (radd && !ladd || rdel && !ldel) {
         this.addClass('jp-Merge-oneway-remote');
+      } else if (ldel && rdel) {
+        this.headerTitle = 'Deleted on both sides';
+        this.addClass('jp-Merge-twoway-deletion');
+      } else if (ladd && radd) {
+        this.headerTitle = 'Added on both sides';
+        this.addClass('jp-Merge-twoway-addition');
       }
       this.addWidget(view);
     } else {

@@ -107,15 +107,20 @@
 #nbdime-header-base {
   display: inline-block;
   width: 50%;
-  background-color: #ccc
+  background-color: #f8cbcb
 }
 
 #nbdime-header-remote {
   display: inline-block;
   width: 49%;
-  background-color: #ccc
+  background-color: #a6f3a6;
 }
 
-#nbdime-close {
-  display: block;
+.nbdime-header-button {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+#nbdime-header-banner {
+  margin-top: 10px;
 }

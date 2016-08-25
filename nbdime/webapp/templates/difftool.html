@@ -15,9 +15,14 @@
   <body> <!-- onload="nbdime.init()" -->
     <div id="nbdime-header">
       <h3>Notebook Diff</h3>
-      <button id="nbdime-close">Close tool</button>
-      <span id="nbdime-header-base">Local</span>
-      <span id="nbdime-header-remote">Remote</span>
+      <div id="nbdime-header-buttonrow">
+        <button id="nbdime-save" class="nbdime-header-button">Save</button>
+        <button id="nbdime-close" class="nbdime-header-button">Close tool</button>
+      </div>
+      <div id=nbdime-header-banner>
+        <span id="nbdime-header-base">Base</span>
+        <span id="nbdime-header-remote">Remote</span>
+      </div>
     </div> <!-- ndime-header -->
 
     <div id="nbdime-root">

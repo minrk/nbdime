@@ -148,18 +148,31 @@
   margin-bottom: 20px;
 }
 
-#nbdime-header-base {
+.nbdime-header-button{
   display: inline-block;
-  width: 50%;
-  background-color: #ccc
+  margin-right: 10px;
+}
+
+#nbdime-header-banner {
+  margin-top: 10px;
+}
+
+
+#nbdime-header-base,
+#nbdime-header-remote,
+#nbdime-header-local {
+  display: inline-block;
+  width: 33%;
+}
+
+#nbdime-header-local {
+  background-color: #cbcbf8;
+}
+
+#nbdime-header-base {
+  background-color: #eee;
 }
 
 #nbdime-header-remote {
-  display: inline-block;
-  width: 49%;
-  background-color: #ccc
-}
-
-#nbdime-close {
-  display: block;
+  background-color: #beb;
 }

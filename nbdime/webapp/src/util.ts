@@ -46,7 +46,7 @@ function shallowCopy(original) {
   let clone = Object.create(Object.getPrototypeOf(original));
 
   for (let k in original) {
-    if (original[k].constructor === Function) {
+    if (Object.hasOwnProperty('constructor') && original[k].constructor === Function) {
       continue;
     }
     // copy each property into the clone

@@ -125,7 +125,7 @@ class ApiDiffHandler(NbdimeApiHandler):
 
         try:
             thediff = nbdime.diff_notebooks(base_nb, remote_nb)
-        except Exception as e:
+        except Exception:
             raise web.HTTPError(400, "Error while diffing documents.")
 
         data = {

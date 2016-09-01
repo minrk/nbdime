@@ -4,14 +4,12 @@
 import expect = require('expect.js');
 
 import {
-  DiffRangeRaw, DiffRangePos, raw2Pos
+  DiffRangeRaw, raw2Pos
 } from '../../../src/diffutil';
 
 import {
   StringDiffModel
 } from '../../../src/diffmodel';
-
-import * as CodeMirror from 'codemirror';
 
 
 describe('nbdime', () => {
@@ -192,7 +190,7 @@ describe('nbdime', () => {
   });
 
   describe('StringDiffModel', () => {
-    describe('getChunks', () => {
+    describe('getLineChunks', () => {
 
       it('should chunk a single line diff', () => {
         let base = 'Single line text';
@@ -200,7 +198,7 @@ describe('nbdime', () => {
         let added: DiffRangeRaw[] = [];
         added.push(new DiffRangeRaw('Single '.length, 'update '.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].editTo).to.equal(chunks[0].origTo);
@@ -215,7 +213,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1\nLine 2 is '.length, 'now '.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].editTo).to.equal(chunks[0].origTo);
@@ -230,7 +228,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1\n'.length, 'Now '.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].editTo).to.equal(chunks[0].origTo);
@@ -245,7 +243,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1\nLine 2 is like this'.length, ' now'.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].editTo).to.equal(chunks[0].origTo);
@@ -260,7 +258,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1'.length, '\nLine 1.1'.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].origFrom).to.equal(1);
@@ -275,7 +273,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1\n'.length, 'Line 1.1\n'.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].origFrom).to.equal(1);
@@ -293,7 +291,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1'.length, '\n'.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].origFrom).to.equal(0);
@@ -311,7 +309,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1'.length, '\n\n\n'.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].origFrom).to.equal(0);
@@ -329,7 +327,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           'Line 1'.length, '\nLine 1.1\n'.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].origFrom).to.equal(0);
@@ -344,7 +342,7 @@ describe('nbdime', () => {
         added.push(new DiffRangeRaw(
           0, 'Line 0\n'.length, null));
         let m = new StringDiffModel(base, remote, added, []);
-        let chunks = m.getChunks();
+        let chunks = m.getLineChunks();
         expect(chunks).to.have.length(1);
         expect(chunks[0].editFrom).to.equal(chunks[0].origFrom);
         expect(chunks[0].editFrom).to.equal(0);

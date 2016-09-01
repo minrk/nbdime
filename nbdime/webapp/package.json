@@ -1,5 +1,6 @@
 {
   "name": "jupyter-nbdime",
+  "main": "static/build/nbdime.js",
   "version": "0.1.0",
   "scripts": {
     "build": "webpack",

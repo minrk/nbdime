@@ -5,7 +5,8 @@
 /**
  * Check whether a value is in an array.
  */
-export function valueIn(value: any, array: Array<any>) {
+export
+function valueIn(value: any, array: Array<any>) {
   return array.indexOf(value) >= 0;
 }
 
@@ -13,7 +14,8 @@ export function valueIn(value: any, array: Array<any>) {
 /**
  * Deepcopy routine for JSON-able data types
  */
-export function deepCopy(obj) {
+export
+function deepCopy(obj) {
   if (typeof obj === 'object') {
     if (obj === null) {
       return null;
@@ -84,11 +86,11 @@ function arraysEqual(a: any[], b: any[]) {
  */
 export
 function findSharedPrefix(a: any[], b: any[]): any[] {
-  if (a === b) {
-    return a.slice();
-  }
   if (a === null || b === null) {
     return null;
+  }
+  if (a === b) {  // Only checking for instance equality
+    return a.slice();
   }
   let i = 0;
   for (; i < Math.min(a.length, b.length); ++i) {
@@ -100,21 +102,25 @@ function findSharedPrefix(a: any[], b: any[]): any[] {
 }
 
 /**
- * Check whether `parent` is contained within the start of `sub`
+ * Check whether `parent` is contained within the start of `child`
+ *
+ * Note on terminology: Parent is here the shortest array, as it will
+ * be the parent in a tree-view of values, e.g. a path. In other words, parent
+ * is a subsequence of child.
  */
 export
-function isPrefixArray(parent: any[], sub: any[]): boolean {
-  if (parent === sub) {
+function isPrefixArray(parent: any[], child: any[]): boolean {
+  if (parent === child) {
     return true;
   }
   if (parent === null || parent.length === 0) {
     return true;
   }
-  if (sub === null || parent.length > sub.length) {
+  if (child === null || parent.length > child.length) {
     return false;
   }
   for (let i = 0; i < parent.length; ++i) {
-    if (parent[i] !== sub[i]) {
+    if (parent[i] !== child[i]) {
       return false;
     }
   }

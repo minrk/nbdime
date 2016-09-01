@@ -50,6 +50,9 @@ def main_merge(args):
             m["metadata"]["nbdime-conflicts"] = conflicted
         # Write partial or fully completed merge to given foo.ipynb filename
         with open(mfn, "wb") as mf:
+            # FIXME: We currently write this way as git needs \n line endings,
+            # when used as merge driver. However, we should write using OS
+            # line endings otherwise.
             nb = nbformat.from_dict(m)
             s = nbformat.writes(nb) + u'\n'
             mf.write(s.encode())

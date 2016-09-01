@@ -97,7 +97,7 @@ def diff_sequence_multilevel(a, b, path="", predicates=None, differs=None):
         differs = default_differs()
 
     # Invoke multilevel snake computation algorithm
-    compares = predicates[path]
+    compares = predicates[path or '/']
     snakes = compute_snakes_multilevel(a, b, compares)
 
     # Convert snakes to diff
@@ -113,7 +113,7 @@ def diff_lists(a, b, path="", predicates=None, differs=None, shallow_diff=None):
         differs = default_differs()
 
     # If multiple compares are provided to this path, delegate to multilevel algorithm
-    compares = predicates[path]
+    compares = predicates[path or '/']
     if len(compares) > 1:
         assert shallow_diff is None
         return diff_sequence_multilevel(a, b, path=path, predicates=predicates, differs=differs)
@@ -212,7 +212,7 @@ def diff_dicts(a, b, path="", predicates=None, differs=None):
             if dd:
                 di.patch(key, dd)
         else:
-            if path in predicates:
+            if (path or '/') in predicates:
                 # Could also this a warning, but I think it shouldn't be done
                 raise RuntimeError("Found predicate(s) for path {} pointing to dict entry.".format(path))
             if avalue != bvalue:

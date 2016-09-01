@@ -22,6 +22,13 @@ def cut(li, *indices):
     return c
 
 
+def assert_either_decision(d, diff):
+    assert not d.conflict
+    assert d.action == 'either'
+    assert d.local_diff == diff
+    assert d.remote_diff == diff
+
+
 def test_shallow_merge_lists_delete_no_conflict():
     # local removes an entry
     b = [1, 3]
@@ -115,26 +122,35 @@ def test_shallow_merge_lists_insert_conflicted():
     l = [1, 2, 7, 9]
     r = [1, 3, 7, 9]
     decisions = decide_merge(b, l, r)
-    assert apply_decisions(b, decisions) == b
-    assert len(decisions) == 1
+    assert apply_decisions(b, decisions) == [1, 7, 9]
+    assert len(decisions) == 2
     d = decisions[0]
     assert d.conflict
     assert d.common_path == ()
-    assert d.local_diff == [op_addrange(1, [2, 7])]
-    assert d.remote_diff == [op_addrange(1, [3, 7])]
+    assert d.local_diff == [op_addrange(1, [2])]
+    assert d.remote_diff == [op_addrange(1, [3])]
+    d = decisions[1]
+    assert d.common_path == ()
+    assert_either_decision(d, [op_addrange(1, [7])])
 
     # local and remote adds entries to empty base
     b = []
     l = [1, 2, 4]
     r = [1, 3, 4]
     decisions = decide_merge(b, l, r)
-    assert apply_decisions(b, decisions) == b
-    assert len(decisions) == 1
+    assert apply_decisions(b, decisions) == [1, 4]
+    assert len(decisions) == 3
     d = decisions[0]
+    assert d.common_path == ()
+    assert_either_decision(d, [op_addrange(0, [1])])
+    d = decisions[1]
     assert d.conflict
     assert d.common_path == ()
-    assert d.local_diff == [op_addrange(0, l)]
-    assert d.remote_diff == [op_addrange(0, r)]
+    assert d.local_diff == [op_addrange(0, [2])]
+    assert d.remote_diff == [op_addrange(0, [3])]
+    d = decisions[2]
+    assert d.common_path == ()
+    assert_either_decision(d, [op_addrange(0, [4])])
 
     # local and remote adds different entries interleaved within each base entry
     b = [2, 5, 8]
@@ -185,12 +201,14 @@ def test_deep_merge_lists_delete_no_conflict():
     l = [[1, 5], [2, 4]]  # deletes 3 and 6
     r = [[1, 5], [4, 6]]  # deletes 3 and 2
     decisions = decide_merge(b, l, r)
-    #assert apply_decisions(b, decisions) == [[1, 5], [2, 4], [1, 5], [4, 6]]  # This was expected behaviour before: clear b, add l, add r
-    #assert apply_decisions(b, decisions) == [[1, 5], [4]]  # 2,3,6 should be gone. TODO: This is the naively ideal thought-reading behaviour. Possible?
-    assert apply_decisions(b, decisions) == b  # conflicts lead to original kept in m
+    m = apply_decisions(b, decisions)
+    #assert m == [[1, 5], [2, 4], [1, 5], [4, 6]]  # This was expected behaviour before: clear b, add l, add r
+    #assert m == [[1, 5], [4]]  # 2,3,6 should be gone. TODO: This is the naively ideal thought-reading behaviour. Possible?
+    assert m == b  # conflicts lead to original kept in m
     assert decisions[0].conflict
     assert decisions[0].local_diff == [op_addrange(0, l), op_removerange(0, 2)]
     assert decisions[0].remote_diff == [op_addrange(0, r), op_removerange(0, 2)]
+
 
 
 # TODO: We want this to work, requires improvements to nested list diffing.
@@ -236,13 +254,19 @@ def test_deep_merge_twosided_inserts_conflicted():
     assert diff(b, l) == [op_addrange(0, [[2], [3]])]
     assert diff(b, r) == [op_addrange(0, [[2], [4]])]
     decisions = decide_merge(b, l, r)
-    assert apply_decisions(b, decisions) == b
-    assert len(decisions) == 1
+    assert apply_decisions(b, decisions) == [[2]]
+    assert len(decisions) == 2
     d = decisions[0]
+    assert not d.conflict
+    assert d.common_path == ()
+    assert d.action == 'either'
+    assert d.local_diff == [op_addrange(0, [[2]])]
+    assert d.remote_diff == [op_addrange(0, [[2]])]
+    d = decisions[1]
     assert d.conflict
     assert d.common_path == ()
-    assert d.local_diff == [op_addrange(0, l)]
-    assert d.remote_diff == [op_addrange(0, r)]
+    assert d.local_diff == [op_addrange(0, [[3]])]
+    assert d.remote_diff == [op_addrange(0, [[4]])]
 
 
 def test_deep_merge_twosided_inserts_conflicted2():
@@ -253,13 +277,14 @@ def test_deep_merge_twosided_inserts_conflicted2():
     assert diff(b, l) == [op_addrange(1, [[2], [3]])]
     assert diff(b, r) == [op_addrange(1, [[2], [4]])]
     decisions = decide_merge(b, l, r)
-    assert apply_decisions(b, decisions) == b
-    assert len(decisions) == 1
-    d = decisions[0]
+    assert apply_decisions(b, decisions) == [[1], [2]]
+    assert len(decisions) == 2
+    assert_either_decision(decisions[0], [op_addrange(1, [[2]])])
+    d = decisions[1]
     assert d.conflict
     assert d.common_path == ()
-    assert d.local_diff == [op_addrange(1, l[1:])]
-    assert d.remote_diff == [op_addrange(1, r[1:])]
+    assert d.local_diff == [op_addrange(1, l[2:])]
+    assert d.remote_diff == [op_addrange(1, r[2:])]
 
 
 def test_deep_merge_lists_insert_conflicted():
@@ -286,7 +311,7 @@ def test_deep_merge_lists_insert_conflicted():
     decisions = decide_merge(b, l, r)
     #assert apply_decisions(b, decisions) == [[1, 2], [1, 3]]  # This was expected behaviour in old code, obviously not what we want
     #assert apply_decisions(b, decisions) == [[1, 2, 3]]  # This is the behaviour we want from an ideal thought-reading algorithm, unclear if possible
-    assert apply_decisions(b, decisions) == [[1]]  # This is the behaviour we get now, with conflicts left:
+    #assert apply_decisions(b, decisions) == [[1]]  # This is the behaviour we get if reverts to base value
     assert len(decisions) == 1
     d = decisions[0]
     assert d.common_path == ()

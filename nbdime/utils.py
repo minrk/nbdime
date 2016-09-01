@@ -35,12 +35,12 @@ def revert_strings_to_lists(obj):
 
 
 def split_path(path):
-    "Split a path on the form /foo/bar into ['foo','bar']."
+    "Split a path on the form '/foo/bar' into ['foo','bar']."
     return [x for x in path.strip("/").split("/") if x]
 
 
 def join_path(*args):
-    "Split a path on the form /foo/bar into ['foo','bar']."
+    "Join a path on the form ['foo','bar'] into '/foo/bar'."
     if len(args) == 1 and isinstance(args[0], (list, tuple, set)):
         args = args[0]
     args = [str(a) for a in args if a not in ["", "/"]]
@@ -58,3 +58,17 @@ def star_path(path):
             if p.isnumeric():
                 path[i] = '*'
     return join_path(path)
+
+
+class Strategies(dict):
+    """Simple dict wrapper for strategies to allow for wildcard matching of
+    list indices + transients collection.
+    """
+    def __init__(self, *args, **kwargs):
+        self.transients = kwargs.get("transients", [])
+        super(Strategies, self).__init__(*args, **kwargs)
+
+    def get(self, k, d=None):
+        parts = split_path(k)
+        key = star_path(parts)
+        return super(Strategies, self).get(key, d)

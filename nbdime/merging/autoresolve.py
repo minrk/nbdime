@@ -327,7 +327,8 @@ def autoresolve_decision_on_list(dec, base, sub, strategies):
                     remote_diff=rinserts,
                 ))
         elif lpatches or rpatches:
-            # One sided patch, with addition/deletions on other
+            # One sided patch, with deletions on other (vs addition is not a
+            # conflict)
             # Check that patch side only has one op (the patch)
             if lpatches:
                 assert tuple(lpatches) == d0

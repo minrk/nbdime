@@ -5,11 +5,11 @@
 
 from __future__ import unicode_literals
 
-from .decisions import decide_merge_with_diff, apply_decisions
+from .generic import decide_merge_with_diff
+from .decisions import apply_decisions
 from .autoresolve import autoresolve
-#from ..patching import patch
 from ..diffing.notebooks import diff_notebooks
-from ..utils import split_path, star_path
+from ..utils import Strategies
 
 
 # Strategies for handling conflicts  TODO: Implement these and refine further!
@@ -25,20 +25,6 @@ generic_conflict_strategies = (
     "inline-outputs",   # Valid for outputs only: produce new outputs with inline diff markers
     "join",             # Join values in case of conflict, don't insert new markers.
     )
-
-
-class Strategies(dict):
-    """Simple dict wrapper for strategies to allow for wildcard matching of
-    list indices.
-    """
-    def __init__(self, *args, **kwargs):
-        self.transients = kwargs.get("transients", [])
-        super(Strategies, self).__init__(*args, **kwargs)
-
-    def get(self, k, d=None):
-        parts = split_path(k)
-        key = star_path(parts)
-        return super(Strategies, self).get(key, d)
 
 
 def autoresolve_notebook_conflicts(base, decisions, args):

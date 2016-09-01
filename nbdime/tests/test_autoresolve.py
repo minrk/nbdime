@@ -6,10 +6,14 @@
 from __future__ import unicode_literals
 
 import pytest
+import operator
+from collections import defaultdict
 
-from nbdime import merge_notebooks
-from nbdime.merging.decisions import decide_merge, apply_decisions
+from nbdime import merge_notebooks, diff, decide_merge, apply_decisions
+
+from nbdime.merging.generic import decide_merge_with_diff
 from nbdime.merging.autoresolve import autoresolve
+from nbdime.utils import Strategies
 
 
 # FIXME: Extend tests to more merge situations!
@@ -120,6 +124,42 @@ def test_autoresolve_dict_use_one_side():
     assert apply_decisions(base2, decisions) == {"foo": {"bar": 3}}
 
 
+def test_autoresolve_list_transients():
+    # For this test, we need to use a custom predicate to ensure alignment
+    common = {'id': 'This ensures alignment'}
+    predicates = defaultdict(lambda: [operator.__eq__], {
+        '/': [lambda a, b: a['id'] == b['id']],
+    })
+    # Setup transient difference in base and local, deletion in remote
+    b = [{'transient': 22}]
+    l = [{'transient': 242}]
+    b[0].update(common)
+    l[0].update(common)
+    r = []
+
+    # Make decisions based on diffs with predicates
+    ld = diff(b, l, path="", predicates=predicates)
+    rd = diff(b, r, path="", predicates=predicates)
+    decisions = decide_merge_with_diff(b, l, r, ld, rd)
+
+    # Assert that generic merge gives conflict
+    assert apply_decisions(b, decisions) == b
+    assert len(decisions) == 1
+    assert decisions[0].conflict
+
+    # Without strategy, no progress is made:
+    resolved = autoresolve(b, decisions, Strategies())
+    assert resolved == decisions
+
+    # Supply transient list to autoresolve, and check that transient is ignored
+    strategies = Strategies(transients=[
+        '/*/transient'
+    ])
+    resolved = autoresolve(b, decisions, strategies)
+    assert apply_decisions(b, resolved) == r
+    assert not any(d.conflict for d in resolved)
+
+
 def test_autoresolve_list_conflicting_insertions_simple():
     # local and remote adds an entry each
     b = [1]
@@ -205,7 +245,8 @@ def test_autoresolve_list_conflicting_insertions_mixed():
     # Check strategyless resolution
     strategies = {}
     resolved = autoresolve(b, decisions, strategies)
-    assert apply_decisions(b, resolved) == b
+    expected_partial = [1, 7, 9]
+    assert apply_decisions(b, resolved) == expected_partial
     assert resolved == decisions  # Not able to resolve anything
 
     strategies = {"/*": "use-local"}
@@ -220,18 +261,83 @@ def test_autoresolve_list_conflicting_insertions_mixed():
 
     strategies = {"/*": "use-base"}
     resolved = autoresolve(b, decisions, strategies)
-    assert apply_decisions(b, resolved) == b
+    assert apply_decisions(b, resolved) == expected_partial
     assert not any(d.conflict for d in resolved)
 
     strategies = {"/*": "join"}
     resolved = autoresolve(b, decisions, strategies)
-    # FIXME: Not ideal "intuitive" resolution?
-    assert apply_decisions(b, resolved) == [1, 2, 7, 3, 7, 9]
+    assert apply_decisions(b, resolved) == [1, 2, 3, 7, 9]
     assert not any(d.conflict for d in resolved)
 
     strategies = {"/*": "clear-parent"}
     resolved = autoresolve(b, decisions, strategies)
     assert apply_decisions(b, resolved) == []
+    assert not any(d.conflict for d in resolved)
+
+
+def test_autoresolve_dict_transients():
+    # For this test, we need to use a custom predicate to ensure alignment
+
+    common = {'id': 'This ensures alignment'}
+    # Setup transient difference in base and local, deletion in remote
+    b = {'a': {'transient': 22}}
+    l = {'a': {'transient': 242}}
+    r = {}
+
+    # Make decisions based on diffs with predicates
+    decisions = decide_merge(b, l, r)
+
+    # Assert that generic merge gives conflict
+    assert apply_decisions(b, decisions) == b
+    assert len(decisions) == 1
+    assert decisions[0].conflict
+
+    # Without strategy, no progress is made:
+    resolved = autoresolve(b, decisions, Strategies())
+    assert resolved == decisions
+
+    # Supply transient list to autoresolve, and check that transient is ignored
+    strategies = Strategies(transients=[
+        '/a/transient'
+    ])
+    resolved = autoresolve(b, decisions, strategies)
+    assert apply_decisions(b, resolved) == r
+    assert not any(d.conflict for d in resolved)
+
+
+def test_autoresolve_mixed_nested_transients():
+    # For this test, we need to use a custom predicate to ensure alignment
+    common = {'id': 'This ensures alignment'}
+    predicates = defaultdict(lambda: [operator.__eq__], {
+        '/': [lambda a, b: a['id'] == b['id']],
+    })
+    # Setup transient difference in base and local, deletion in remote
+    b = [{'a': {'transient': 22}}]
+    l = [{'a': {'transient': 242}}]
+    b[0].update(common)
+    l[0].update(common)
+    r = []
+
+    # Make decisions based on diffs with predicates
+    ld = diff(b, l, path="", predicates=predicates)
+    rd = diff(b, r, path="", predicates=predicates)
+    decisions = decide_merge_with_diff(b, l, r, ld, rd)
+
+    # Assert that generic merge gives conflict
+    assert apply_decisions(b, decisions) == b
+    assert len(decisions) == 1
+    assert decisions[0].conflict
+
+    # Without strategy, no progress is made:
+    resolved = autoresolve(b, decisions, Strategies())
+    assert resolved == decisions
+
+    # Supply transient list to autoresolve, and check that transient is ignored
+    strategies = Strategies(transients=[
+        '/*/a/transient'
+    ])
+    resolved = autoresolve(b, decisions, strategies)
+    assert apply_decisions(b, resolved) == r
     assert not any(d.conflict for d in resolved)
 
 

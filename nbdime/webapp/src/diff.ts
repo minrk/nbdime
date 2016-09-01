@@ -89,8 +89,8 @@ function showDiff(data: {base: nbformat.INotebookContent, diff: IDiffEntry[]}) {
  */
 function onDiff(e: Event) {
   e.preventDefault();
-  var b = (document.getElementById('diff-base') as HTMLInputElement).value;
-  var r = (document.getElementById('diff-remote') as HTMLInputElement).value;
+  let b = (document.getElementById('diff-base') as HTMLInputElement).value;
+  let r = (document.getElementById('diff-remote') as HTMLInputElement).value;
   requestDiff(b, r);
   let uri = '/diff?base=' + encodeURIComponent(b) +
     '&remote=' + encodeURIComponent(r);
@@ -105,8 +105,8 @@ function onDiff(e: Event) {
  */
 function onPopState(e: PopStateEvent) {
   if (e.state) {
-    var eb = (document.getElementById('diff-base') as HTMLInputElement);
-    var er = (document.getElementById('diff-remote') as HTMLInputElement);
+    let eb = (document.getElementById('diff-base') as HTMLInputElement);
+    let er = (document.getElementById('diff-remote') as HTMLInputElement);
     eb.value = e.state.base;
     er.value = e.state.remote;
     requestDiff(e.state.base, e.state.remote);
@@ -118,7 +118,7 @@ function onPopState(e: PopStateEvent) {
  */
 function requestDiff(base: string, remote: string) {
   requestJson('/api/diff',
-              {base:base, remote:remote},
+              {base: base, remote: remote},
               onDiffRequestCompleted,
               onDiffRequestFailed);
 }
@@ -144,7 +144,7 @@ function onDiffRequestFailed(response: string) {
  * Wire up callbacks.
  */
 function attachToForm() {
-  var frm = document.getElementById('nbdime-diff-form') as HTMLFormElement;
+  let frm = document.getElementById('nbdime-diff-form') as HTMLFormElement;
   if (frm) {
     frm.onsubmit = onDiff;
     // It only makes sense to listen to pop state events when the form is

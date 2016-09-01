@@ -1,9 +1,12 @@
 module.exports = {
-  entry: './src/index.ts',
+  entry: {
+    nbdime: './src/index.ts',
+  },
   output: {
     path: __dirname + "/static/build",
-    filename: "bundle.js",
-    publicPath: "./static/"
+    filename: "[name].js",
+    publicPath: "./static/",
+    libraryTarget: 'commonjs2',
   },
   debug: true,
   devtool: 'source-map',

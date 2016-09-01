@@ -17,4 +17,7 @@ Install the [codecov browser extension](https://github.com/codecov/browser-exten
     git clone https://github.com/jupyter/nbdime
     cd nbdime
     pip install .
-    
+
+## Running webapp
+
+    python nbdimeserver.py

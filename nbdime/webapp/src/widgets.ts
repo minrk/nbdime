@@ -3,7 +3,7 @@
 'use strict';
 
 import {
-  RenderMime
+  IRenderMime
 } from 'jupyterlab/lib/rendermime';
 
 import {
@@ -225,7 +225,7 @@ class NbdimeMergeView extends Widget {
  */
 class RenderableOutputView extends Widget {
   constructor(model: OutputDiffModel, editorClass: string[],
-              rendermime: RenderMime) {
+              rendermime: IRenderMime) {
     super();
     this._rendermime = rendermime;
     let bdata = model.base as nbformat.IOutput;
@@ -303,7 +303,7 @@ class RenderableOutputView extends Widget {
   }
 
   _sanitized: boolean;
-  _rendermime: RenderMime;
+  _rendermime: IRenderMime;
 }
 
 
@@ -315,7 +315,7 @@ class CellDiffWidget extends Panel {
   /**
    *
    */
-  constructor(model: CellDiffModel, rendermime: RenderMime,
+  constructor(model: CellDiffModel, rendermime: IRenderMime,
               mimetype: string) {
     super();
     this.addClass(CELLDIFF_CLASS);
@@ -383,7 +383,7 @@ class CellDiffWidget extends Panel {
    */
   static
   createView(model: IDiffModel, parent: CellDiffModel,
-             editorClasses: string[], rendermime: RenderMime): Widget {
+             editorClasses: string[], rendermime: IRenderMime): Widget {
     let view: Widget = null;
     if (model instanceof StringDiffModel) {
       if (model.unchanged && parent.cellType === 'markdown') {
@@ -455,7 +455,7 @@ class CellDiffWidget extends Panel {
   }
 
   protected _model: CellDiffModel = null;
-  protected _rendermime: RenderMime = null;
+  protected _rendermime: IRenderMime = null;
 }
 
 
@@ -496,7 +496,7 @@ class MetadataDiffWidget extends Panel {
  */
 export
 class NotebookDiffWidget extends Widget {
-  constructor(model: NotebookDiffModel, rendermime: RenderMime) {
+  constructor(model: NotebookDiffModel, rendermime: IRenderMime) {
     super();
     this._model = model;
     this._rendermime = rendermime;
@@ -523,7 +523,7 @@ class NotebookDiffWidget extends Widget {
   }
 
   private _model: NotebookDiffModel;
-  private _rendermime: RenderMime = null;
+  private _rendermime: IRenderMime = null;
 }
 
 /**
@@ -534,7 +534,7 @@ class CellMergeWidget extends Panel {
   /**
    *
    */
-  constructor(model: CellMergeModel, rendermime: RenderMime,
+  constructor(model: CellMergeModel, rendermime: IRenderMime,
               mimetype: string) {
     super();
     this.addClass(CELLMERGE_CLASS);
@@ -704,7 +704,7 @@ class CellMergeWidget extends Panel {
   }
 
   protected _model: CellMergeModel = null;
-  protected _rendermime: RenderMime = null;
+  protected _rendermime: IRenderMime = null;
 }
 
 
@@ -714,7 +714,7 @@ class CellMergeWidget extends Panel {
 export
 class NotebookMergeWidget extends DragOrderPanel {
   constructor(model: NotebookMergeModel,
-              rendermime: RenderMime) {
+              rendermime: IRenderMime) {
     super();
     this._model = model;
     this._rendermime = rendermime;
@@ -747,5 +747,5 @@ class NotebookMergeWidget extends DragOrderPanel {
   }
 
   private _model: NotebookMergeModel;
-  private _rendermime: RenderMime = null;
+  private _rendermime: IRenderMime = null;
 }

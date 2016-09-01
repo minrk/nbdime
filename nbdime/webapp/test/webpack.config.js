@@ -1,16 +1,19 @@
 var path = require('path');
 
 module.exports = {
-  entry: './test/src/index.ts',
+  context: __dirname,
+  entry: './src/index.ts',
   output: {
     path: __dirname + "/build",
-    filename: "bundle.js",
-    publicPath: "./build/"
+    filename: "bundle.js"
   },
   bail: true,
+  debug: true,
+  devtool: 'inline-source-map',
   module: {
     loaders: [
       { test: /\.css$/, loader: 'style-loader!css-loader' },
+      { test: /\.json$/, loader: 'json-loader' },
       { test: /\.md$/, loader: 'raw-loader'},
       { test: /\.html$/, loader: "file?name=[name].[ext]" },
       { test: /\.ipynb$/, loader: 'json-loader' },

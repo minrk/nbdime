@@ -26,7 +26,9 @@ export function deepCopy(obj) {
       return o;
     } else {
       let r: any = {};
-      r.prototype = obj.prototype;
+      if (obj.prototype !== undefined) {
+        r.prototype = obj.prototype;
+      }
       for (let k in obj) {
         r[k] = deepCopy(obj[k]);
       }

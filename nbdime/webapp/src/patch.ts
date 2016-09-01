@@ -8,7 +8,8 @@ import {
 
 import {
   DiffRangeRaw, JSON_INDENT, repeatString, IDiffEntry, IDiffAdd, IDiffPatch,
-  IDiffAddRange, IDiffRemoveRange, DiffOp, flattenStringDiff
+  IDiffAddRange, IDiffRemoveRange, DiffOp, flattenStringDiff,
+  validateObjectOp, validateSequenceOp
 } from './diffutil';
 
 
@@ -47,6 +48,8 @@ export function patch(base: (string | Array<any> | any), diff: IDiffEntry[]) : (
     return patchString(base, diff, 0, false).remote;
   } else if (base instanceof Array) {
     return patchSequence(base, diff);
+  } else if (valueIn(typeof base, ['number', 'boolean'])) {
+    throw 'Cannot patch an atomic type: ' + typeof base;
   } else {
     return patchObject(base, diff);
   }
@@ -60,6 +63,8 @@ function patchSequence(base: Array<any>, diff: IDiffEntry[]): Array<any> {
   let take = 0;
   let skip = 0;
   for (let e of diff) {
+    // Check for valid entry first:
+    validateSequenceOp(base, e);
     let op = e.op;
     let index = e.key as number;
 
@@ -80,8 +85,6 @@ function patchSequence(base: Array<any>, diff: IDiffEntry[]): Array<any> {
     } else if (op === DiffOp.PATCH) {
       patched.push(patch(base[index], (e as IDiffPatch).diff));
       skip = 1;
-    } else {
-      throw 'Invalid op: ' + op;
     }
 
     // Skip the specified number of elements, but never decrement take.
@@ -104,11 +107,12 @@ function patchObject(base: Object, diff: IDiffEntry[]) : Object {
 
   if (diff) {
     for (let e of diff) {
+      // Check for valid entry first:
+      validateObjectOp(base, e, keysToCopy);
       let op = e.op;
       let key = e.key as string;
 
       if (op === DiffOp.ADD) {
-        console.assert(!(key in keysToCopy));
         patched[key] = (e as IDiffAdd).value;
       } else if (op === DiffOp.REMOVE) {
         keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
@@ -118,8 +122,6 @@ function patchObject(base: Object, diff: IDiffEntry[]) : Object {
       } else if (op === DiffOp.PATCH) {
         keysToCopy.splice(keysToCopy.indexOf(key), 1);   // Remove key
         patched[key] = patch(base[key], (e as IDiffPatch).diff);
-      } else {
-        throw 'Invalid op ' + op;
       }
     }
   }
@@ -159,7 +161,7 @@ export function patchStringified(base: (string | Array<any> | any), diff: IDiffE
 
 function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number) : StringifiedPatchResult {
   if (level === undefined) {
-    var level = 0;
+    level = 0;
   }
   let map: { [key: string]: any; } = base;
   let remote = '';
@@ -181,10 +183,11 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
     opKeys.push(d.key as string);
     ops[d.key as string] = d;
   }
-  let allKeys = _getAllKeys(base, opKeys);
+  let baseKeys = Object.keys(base);
+  let remainingKeys = _getAllKeys(base, opKeys);
 
   for (; ; ) {
-    let key = allKeys.shift();
+    let key = remainingKeys.shift();
     if (key === undefined) {
       break;
     }
@@ -192,6 +195,8 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
     if (valueIn(key, opKeys)) {
       // Entry has a change
       let e = ops[key];
+      // Check for valid entry first:
+      validateObjectOp(base, e, baseKeys);
       let op = e.op;
 
       if (valueIn(op, [DiffOp.ADD, DiffOp.REPLACE, DiffOp.REMOVE])) {
@@ -199,7 +204,7 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
           let valr = stringify((e as IDiffAdd).value, level + 1, false) +
               postfix;
           let length = keyString.length + valr.length;
-          if (!_entriesAfter(allKeys, ops, true)) {
+          if (!_entriesAfter(remainingKeys, ops, true)) {
             length -= postfix.length - 1; // Newline will still be included
           }
           additions.push(new DiffRangeRaw(remote.length, length, e.source));
@@ -208,11 +213,12 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
         if (valueIn(op, [DiffOp.REMOVE, DiffOp.REPLACE])) {
           let valb = stringify(map[key], level + 1, false) + postfix;
           let length = keyString.length + valb.length;
-          if (!_entriesAfter(allKeys, ops, false)) {
+          if (!_entriesAfter(remainingKeys, ops, false)) {
             length -= postfix.length - 1; // Newline will still be included
           }
           deletions.push(new DiffRangeRaw(baseIndex, length, e.source));
           baseIndex += valb.length;
+          baseKeys.splice(baseKeys.indexOf(key), 1);
         }
       } else if (op === DiffOp.PATCH) {
         let pd = patchStringified(map[key], (e as IDiffPatch).diff, level + 1);
@@ -229,6 +235,7 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
 
         baseIndex += stringify(map[key], level + 1, false).length +
             keyString.length + postfix.length;
+        baseKeys.splice(baseKeys.indexOf(key), 1);
       } else {
         throw 'Invalid op ' + op;
       }
@@ -267,6 +274,8 @@ function patchStringifiedList(base: Array<any>, diff: IDiffEntry[], level: numbe
   let take = 0;
   let skip = 0;
   for (let e of diff) {
+    // Check for valid entry first:
+    validateSequenceOp(base, e);
     let op = e.op;
     let index = e.key as number;
 

@@ -4,3 +4,4 @@
 import './diffing/chunking.spec';
 import './diffing/patching.spec';
 import './diffing/util.spec';
+import './diffing/decisions.spec';

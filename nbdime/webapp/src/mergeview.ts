@@ -30,6 +30,10 @@ import {
   valueIn
 } from './util';
 
+import {
+  Action
+} from './mergedecision';
+
 
 export enum DIFF_OP {
   DIFF_DELETE = -1,
@@ -235,7 +239,9 @@ class DiffView {
       if (gutter === GUTTER_PICKER_CLASS) {
         if (instance === this.orig) {
           for (let s of ss) {
-            s.decision.action = s.action;
+            if (s.action !== 'mixed') {
+              s.decision.action = s.action as Action;
+            }
           }
         } else if (instance === this.edit) {
           for (let s of ss) {

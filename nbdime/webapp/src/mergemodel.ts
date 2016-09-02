@@ -17,12 +17,12 @@ import {
 } from './diffmodel';
 
 import {
-  IMergeDecision, MergeDecision, resolveCommonPaths, buildDiffs, labelSource,
-  filterDecisions, pushPatchDecision, popPath, applyDecisions
+  IMergeDecision, MergeDecision, resolveCommonPaths, buildDiffs,
+  filterDecisions, pushPatchDecision, popPath, applyDecisions, Action
 } from './mergedecision';
 
 import {
-   LineChunker, Chunk,
+   LineChunker, Chunk, labelSource
 } from './chunking';
 
 import {
@@ -348,9 +348,9 @@ export class CellMergeModel {
         throw 'Currently not able to handle decisions on cell variable \"' +
               d.key + '\"';
       }
-      let action = md.action === 'base' ?
+      let action: Action = (md.action === 'base' ?
         local ? 'local' : 'remote' :
-        md.action;
+        md.action);
       out.push(new MergeDecision(
         md.absolutePath.concat([patch.key]),
         local ? [d] : null,

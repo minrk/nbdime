@@ -243,7 +243,8 @@ export class DiffRangeRaw {
  * The class also has fields to ease chunking of diffs without reparsing the
  * text.
  */
-export class DiffRangePos {
+export
+class DiffRangePos {
   /**
    * Create a diff range. The `ch` field of the `to` position is defined as
    * non-inclusive, i.e., it follows the syntax of String.slice().
@@ -303,7 +304,8 @@ function findLineNumber(nlPos: number[], index: number): number {
  * Function to convert an array of DiffRangeRaw to DiffRangePos. The
  * `text` parameter is the text in which the ranges exist.
  */
-export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
+export
+function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
   // Find all newline's indices in text
   let adIdx: number[] = [];
   let i = -1;
@@ -345,6 +347,9 @@ export function raw2Pos(raws: DiffRangeRaw[], text: string): DiffRangePos[] {
 }
 
 
+/**
+ * Validate that a diff operation is valid to apply on a given base sequence
+ */
 export
 function validateSequenceOp(base: Array<any> | string, entry: IDiffEntry): void {
   let op = entry.op;
@@ -374,6 +379,9 @@ function validateSequenceOp(base: Array<any> | string, entry: IDiffEntry): void 
 }
 
 
+/**
+ * Validate that a diff operation is valid to apply on a given base object
+ */
 export
 function validateObjectOp(base: Object, entry: IDiffEntry, keys: string[]): void {
   let op = entry.op;

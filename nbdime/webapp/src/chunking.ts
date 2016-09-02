@@ -4,7 +4,7 @@
 
 
 import {
-  DiffRangePos
+  DiffRangePos, IDiffEntry, IDiffPatch
 } from './diffutil';
 
 import {
@@ -268,3 +268,20 @@ function lineToNormalChunks(lineChunks: Chunk[]): Chunk[] {
     }
     return ret;
   }
+
+
+/**
+ * Label a set of diffs with a source, recursively.
+ */
+export
+function labelSource(diff: IDiffEntry[], source: ChunkSource): IDiffEntry[] {
+  if (diff) {
+    for (let d of diff) {
+      d.source = source;
+      if ((d as IDiffPatch).diff !== undefined) {
+        labelSource((d as IDiffPatch).diff, source);
+      }
+    }
+  }
+  return diff;
+}

@@ -356,6 +356,7 @@ export function createPatchDiffModel(base: any, diff: IDiffEntry[]) : StringDiff
   return new StringDiffModel(baseStr, out.remote, out.additions, out.deletions);
 }
 
+
 /**
  * Factory for creating cell diff models for added, removed or unchanged content.
  *
@@ -385,7 +386,6 @@ export function createDirectDiffModel(base: any, remote: any): StringDiffModel {
   }
   return new StringDiffModel(baseStr, remoteStr, additions, deletions);
 }
-
 
 
 /**

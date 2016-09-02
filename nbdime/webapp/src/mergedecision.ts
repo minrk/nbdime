@@ -18,10 +18,6 @@ import {
 } from './patch';
 
 import {
-  ChunkSource
-} from './chunking';
-
-import {
   deepCopy, valueIn, isPrefixArray, findSharedPrefix
 } from './util';
 
@@ -42,6 +38,19 @@ interface IMergeDecision {
   custom_diff?: IDiffEntry[];
 }
 
+export
+type Action = 'base' | 'local' | 'remote' | 'local_then_remote' |
+  'remote_then_local' | 'custom' | 'clear' | 'clear_parent' | 'either';
+
+
+function validateAction(action: string): Action {
+  if (valueIn(action, ['base', 'local', 'remote', 'local_then_remote',
+  'remote_then_local', 'custom', 'clear', 'clear_parent', 'either'])) {
+    return action as Action;
+  }
+  throw 'Invalid merge decision action: ' + action;
+}
+
 
 export
 class MergeDecision {
@@ -49,7 +58,7 @@ class MergeDecision {
   constructor(obj: DecisionPath | IMergeDecision | MergeDecision,
               localDiff: IDiffEntry[] = null,
               remoteDiff: IDiffEntry[] = null,
-              action = 'base',
+              action: Action = 'base',
               conflict = false,
               customDiff: IDiffEntry[] = null) {
     this.level = 0;
@@ -64,12 +73,12 @@ class MergeDecision {
       customDiff = obj.customDiff;
       this.level = obj.level;
     } else {
-      this._path = obj.common_path;
-      localDiff = obj.local_diff;
-      remoteDiff = obj.remote_diff;
-      action = obj.action;
-      conflict = obj.conflict;
-      customDiff = obj.custom_diff;
+      this._path = obj.common_path || [];
+      localDiff = obj.local_diff || localDiff;
+      remoteDiff = obj.remote_diff || remoteDiff;
+      action = validateAction(obj.action || action);
+      conflict = obj.conflict || conflict;
+      customDiff = obj.custom_diff || customDiff;
     }
     this.localDiff = localDiff;
     this.remoteDiff = remoteDiff;
@@ -90,7 +99,7 @@ class MergeDecision {
     this._path = value;
   }
 
-  action: string;
+  action: Action;
 
   localDiff: IDiffEntry[];
 
@@ -316,6 +325,11 @@ function splitDiffStringPath(base: any, path: DecisionPath):
 }
 
 
+/**
+ * Apply a merge decision's action to a base.
+ *
+ * Returns a new, patched object, leaving the base unmodified.
+ */
 export
 function applyDecisions(base: any, decisions: MergeDecision[]): any {
   let merged = deepCopy(base);
@@ -390,26 +404,6 @@ function applyDecisions(base: any, decisions: MergeDecision[]): any {
   }
   return merged;
 }
-
-
-
-
-/**
- * Label a set of diffs with a source, recursively.
- */
-export
-function labelSource(diff: IDiffEntry[], source: ChunkSource): IDiffEntry[] {
-  if (diff) {
-    for (let d of diff) {
-      d.source = source;
-      if ((d as IDiffPatch).diff !== undefined) {
-        labelSource((d as IDiffPatch).diff, source);
-      }
-    }
-  }
-  return diff;
-}
-
 
 type DiffTree = {[prefix: string]: {path: DecisionPath, diff: IDiffEntry[]}};
 
@@ -549,13 +543,43 @@ function pushPatchDecision(decision: MergeDecision, prefix: DecisionPath): Merge
   return dec;
 }
 
+
+/**
+ * Filter decisions based on matching (segment of) path
+ *
+ * Checks whether each decision's path start with `path`. If `skipLevels` is
+ * given, the first levels of the decision's path is ignored for the comparison.
+ *
+ * Once matched, the matching decisions' levels are adjusted such that they
+ * point to after the matching segment.
+ *
+ * Example:
+ * Given a list of decisions with paths:
+ *   /cells/0/outputs/0
+ *   /cells/0/outputs/1
+ *   /cells/2/outputs/1
+ *   /cells/12/outputs/0/data
+ *
+ * If called with path `['cells']`:
+ *   All decisions will be returned, with level set to 1
+ * If called with path `['cells', 0]`:
+ *   The first two will be returned, with level set to 2
+ * If called with path `['outputs']`, and skipLevel = 2:
+ *   All decisions will be returned, with level set to 3
+ * If called with path `['outputs', 0]`, and skipLevel = 2:
+ *   Decision 1 and 4 will be returned, with level set to 4
+ *
+ * Note that since the same decision instances are returned, this will modify
+ * the level of the passed decisions.
+ */
 export
 function filterDecisions(decisions: MergeDecision[], path: DecisionPath,
                          skipLevels?: number): MergeDecision[] {
   let ret: MergeDecision[] = [];
+  skipLevels = skipLevels || 0;
   for (let md of decisions) {
     if (isPrefixArray(path, md.absolutePath.slice(skipLevels))) {
-      md.level += path.length;
+      md.level = skipLevels + path.length;
       ret.push(md);
     }
   }

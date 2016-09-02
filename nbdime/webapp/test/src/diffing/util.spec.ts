@@ -7,6 +7,53 @@ import * as util from '../../../src/util';
 
 describe('nbdime', () => {
 
+  describe('arraysEqual', () => {
+
+    it('should return true for instance equality', () => {
+      let a = [1, 2, 3];
+      let value = util.arraysEqual(a, a);
+      expect(value).to.be(true);
+    });
+
+    it('should return true for shallow equality', () => {
+      let arrays = [[1, 2, 3],
+                    ['a', 'b', 'c'],
+                    [123, 'text', true]];
+      for (let a of arrays) {
+        let value = util.arraysEqual(a, a.slice());
+        expect(value).to.be(true);
+      }
+    });
+
+    it('should return true for both null', () => {
+      let value = util.arraysEqual(null, null);
+      expect(value).to.be(true);
+    });
+
+    it('should return false for one null input', () => {
+      let a = [1, 2, 3];
+      let value = util.arraysEqual(null, a);
+      expect(value).to.be(false);
+
+      value = util.arraysEqual(a, null);
+      expect(value).to.be(false);
+    });
+
+    it('should return false for different length arrays', () => {
+      let value = util.arraysEqual([1, 2, 3], [1, 2]);
+      expect(value).to.be(false);
+
+      value = util.arraysEqual([1, 2], [1, 2, 3]);
+      expect(value).to.be(false);
+    });
+
+    it('should return false for deep comparison', () => {
+      let value = util.arraysEqual([{a: 1, b: 2}], [{a: 1, b: 2}]);
+      expect(value).to.be(false);
+    });
+
+  });
+
   describe('findSharedPrefix', () => {
 
     it('should return a copy on identical input', () => {
@@ -151,6 +198,35 @@ describe('nbdime', () => {
 
       value = util.isPrefixArray(['def'], ['abc', 'def', 0]);
       expect(value).to.be(false);
+    });
+
+  });
+
+  describe('accumulateLengths', () => {
+
+    it('should handle an empty array', () => {
+      let value = util.accumulateLengths([]);
+      expect(value).to.eql([]);
+    });
+
+    it('should handle an single item array', () => {
+      let value = util.accumulateLengths(['abc']);
+      expect(value).to.eql([3]);
+    });
+
+    it('should handle multiple strings', () => {
+      let value = util.accumulateLengths(['abc', 'foo', '0xdead']);
+      expect(value).to.eql([3, 6, 12]);
+    });
+
+    it('should handle multiple strings with newlines at end', () => {
+      let value = util.accumulateLengths(['abc\n', 'foo\n', '0xdead\n']);
+      expect(value).to.eql([4, 8, 15]);
+    });
+
+    it('should handle multiple strings with newlines randomly placed', () => {
+      let value = util.accumulateLengths(['\nabc', 'foo\n', '0xde\nad']);
+      expect(value).to.eql([4, 8, 15]);
     });
 
   });

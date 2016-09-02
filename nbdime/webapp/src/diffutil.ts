@@ -5,7 +5,7 @@
 import * as CodeMirror from 'codemirror';
 
 import {
-  valueIn, sortByKey, shallowCopy
+  valueIn, sortByKey, shallowCopy, accumulateLengths
 } from './util';
 
 import {
@@ -198,20 +198,6 @@ export function getDiffKey(diff: IDiffEntry[], key: string | number) : IDiffEntr
   }
   return null;
 }
-
-
-/**
- * Utility function to repeat a string
- */
-export function repeatString(str: string, count: number): string {
-  if (count < 1) return '';
-  var result = '', pattern = str.valueOf();
-  while (count > 1) {
-    if (count & 1) result += pattern;
-    count >>= 1, pattern += pattern;
-  }
-  return result + pattern;
-};
 
 /**
  * Represents a range in a diff (typically in a string), in absolute indices (1D)
@@ -485,15 +471,6 @@ function combineOps(a: IDiffEntry, b: IDiffEntry): IDiffEntry {
     let bTyped = b as IDiffRemoveRange;
     return opRemoveRange(aTyped.key, aTyped.length + bTyped.length);
   }
-}
-
-
-function accumulateLengths(arr: string[]) {
-  let ret: number[] = [];
-  arr.reduce<number>(function(a: number, b: string, i: number): number {
-    return ret[i] = a + b.length;
-  }, 0);
-  return ret;
 }
 
 

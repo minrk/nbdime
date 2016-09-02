@@ -3,11 +3,11 @@
 'use strict';
 
 import {
-  valueIn, deepCopy
+  valueIn, deepCopy, repeatString
 } from './util';
 
 import {
-  DiffRangeRaw, JSON_INDENT, repeatString, IDiffEntry, IDiffAdd, IDiffPatch,
+  DiffRangeRaw, JSON_INDENT, IDiffEntry, IDiffAdd, IDiffPatch,
   IDiffAddRange, IDiffRemoveRange, DiffOp, flattenStringDiff,
   validateObjectOp, validateSequenceOp
 } from './diffutil';

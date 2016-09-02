@@ -61,6 +61,9 @@ function shallowCopy(original) {
   return clone;
 }
 
+/**
+ * Do a shallow, element-wise equality comparison on two arrays.
+ */
 export
 function arraysEqual(a: any[], b: any[]) {
   if (a === b) {
@@ -127,10 +130,49 @@ function isPrefixArray(parent: any[], child: any[]): boolean {
   return true;
 }
 
+/**
+ * Sort array by attribute `key` (i.e. compare by array[0][key] < array[1][key])
+ */
 export
 function sortByKey(array, key) {
     return array.sort(function(a, b) {
         let x = a[key]; let y = b[key];
         return ((x < y) ? -1 : ((x > y) ? 1 : 0));
     });
+}
+
+
+/**
+ * Utility function to repeat a string
+ */
+export
+function repeatString(str: string, count: number): string {
+  if (count < 1) {
+    return '';
+  }
+  let result = '';
+  let pattern = str.valueOf();
+  while (count > 1) {
+    if (count & 1) {
+      result += pattern;
+    }
+    count >>= 1, pattern += pattern;
+  }
+  return result + pattern;
+}
+
+/**
+ * Calculate the cumulative sum of string lengths for an array of strings
+ *
+ * Example:
+ *   For the arary ['ab', '123', 'y', '\t\nfoo'], the output would be
+ *   [2, 5, 6, 11]
+ */
+export
+function accumulateLengths(arr: string[]) {
+  let ret: number[] = [];
+  arr.reduce<number>(function(a: number, b: string, i: number): number {
+    return ret[i] = a + b.length;
+  }, 0);
+  return ret;
 }

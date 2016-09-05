@@ -275,37 +275,51 @@ export class CellMergeModel {
    */
   addDecision(decision: MergeDecision) {
     // Don't allow additional decision if we've already made models!
-    console.assert(!this._local && !this._remote && !this._merged);
+    if (this._local || this._remote || this._merged) {
+      if (this._finalized) {
+        throw 'Cannot add a decision to a finalized cell merge model';
+      } else {
+        throw 'Cannot add more than one cell level decision to one cell';
+      }
+    } else if (decision.absolutePath.length < 1 ||
+               decision.absolutePath[0] !== 'cells') {
+      throw 'Not a valid path for a cell decision';
+    }
 
-    let ld = decision.localDiff ? decision.localDiff.length : 0;
-    let rd = decision.remoteDiff ? decision.remoteDiff.length : 0;
+    let ldlen = decision.localDiff ? decision.localDiff.length : 0;
+    let rdlen = decision.remoteDiff ? decision.remoteDiff.length : 0;
 
+    // Check if cell level or not:
     if (arraysEqual(decision.absolutePath, ['cells']) ) {
+      // Cell level decision (addrange/removerange):
       let decisions = this._applyCellDecision(decision);
+      // Add transformed decisions to model:
       for (let md of decisions) {
         md.level = 2;
         this.decisions.push(md);
       }
-    } else if (decision.absolutePath.length === 2 && (ld > 1 || rd > 1)) {
-      console.assert(valueIn(0, [ld, rd]));
-      // More than one op on cell level, split decisions on key
+    } else if (decision.absolutePath.length === 2 && (ldlen > 1 || rdlen > 1)) {
+      console.assert(valueIn(0, [ldlen, rdlen]));
+      // More than one diff op on cell level, split decisions on key
+      // Translate decision to format taken by _splitPatch, and apply:
       decision = pushPatchDecision(decision, decision.absolutePath.slice(1, 2));
-      let diff = (ld ? decision.localDiff : decision.remoteDiff)[0] as IDiffPatch;
-      let decisions = this._splitPatch(decision, diff, !rd);
+      let diff = (ldlen ? decision.localDiff : decision.remoteDiff)[0] as IDiffPatch;
+      let decisions = this._splitPatch(decision, diff, !rdlen);
       resolveCommonPaths(decisions);
       for (let md of decisions) {
         md.level = 2;
         this.decisions.push(md);
       }
     } else {
+      // Either single diff op on cell level, or a decision on a subpath
+      // Valid path assured by above tests
       decision.level = 2;
       this.decisions.push(decision);
     }
   }
 
-
   /**
-   *
+   * Apply merge decisions to create the merged cell
    */
   serialize(): nbformat.ICell {
     let decisions: MergeDecision[] = [];
@@ -317,7 +331,11 @@ export class CellMergeModel {
     return applyDecisions(this.base, decisions) as nbformat.ICell;
   }
 
-
+  /**
+   * Prevent further changes to decisions, and label the diffs
+   *
+   * The labels are used for picking of decisions
+   */
   protected _finalizeDecisions(): void {
     if (!this._finalized) {
       for (let md of this.decisions) {
@@ -361,6 +379,11 @@ export class CellMergeModel {
     return out;
   }
 
+  /**
+   * Apply a cell level decision to the model
+   *
+   * This creates the revelant kinds of models
+   */
   protected _applyCellDecision(md: MergeDecision): MergeDecision[] {
     let newDecisions = [];
     /* Possibilities:

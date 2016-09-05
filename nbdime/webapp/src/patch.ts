@@ -200,23 +200,44 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
       let op = e.op;
 
       if (valueIn(op, [DiffOp.ADD, DiffOp.REPLACE, DiffOp.REMOVE])) {
+        // Replace is simply an add + remove, but without modifying keystring
         if (valueIn(op, [DiffOp.ADD, DiffOp.REPLACE])) {
           let valr = stringify((e as IDiffAdd).value, level + 1, false) +
               postfix;
-          let length = keyString.length + valr.length;
-          if (!_entriesAfter(remainingKeys, ops, true)) {
-            length -= postfix.length - 1; // Newline will still be included
+          let start = remote.length;
+          let length = valr.length;
+          // Modify range depending on add or replace:
+          if (op === DiffOp.ADD) {
+            length += keyString.length;
+          } else {
+            start += keyString.length;
           }
-          additions.push(new DiffRangeRaw(remote.length, length, e.source));
+          if (!_entriesAfter(remainingKeys, ops, true)) {
+            length -= postfix.length;
+            if (op === DiffOp.ADD) {
+              length += 1;  // Newline will still be added
+            }
+          }
+          additions.push(new DiffRangeRaw(start, length, e.source));
           remote += keyString + valr;
         }
         if (valueIn(op, [DiffOp.REMOVE, DiffOp.REPLACE])) {
           let valb = stringify(map[key], level + 1, false) + postfix;
-          let length = keyString.length + valb.length;
-          if (!_entriesAfter(remainingKeys, ops, false)) {
-            length -= postfix.length - 1; // Newline will still be included
+          let start = baseIndex;
+          let length = valb.length;
+          // Modify range depending on remove or replace:
+          if (op === DiffOp.REMOVE) {
+            length += keyString.length;
+          } else {
+            start += keyString.length;
           }
-          deletions.push(new DiffRangeRaw(baseIndex, length, e.source));
+          if (!_entriesAfter(remainingKeys, ops, false)) {
+            length -= postfix.length;
+            if (op === DiffOp.REMOVE) {
+              length += 1; // Newline will still be removed
+            }
+          }
+          deletions.push(new DiffRangeRaw(start, length, e.source));
           baseIndex += valb.length;
           baseKeys.splice(baseKeys.indexOf(key), 1);
         }

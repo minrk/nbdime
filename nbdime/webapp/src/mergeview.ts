@@ -529,17 +529,18 @@ function getMatchingOrigLine(editLine: number, chunks: Chunk[]): number {
 /**
  * From a line in base, find the matching line in another editor by line chunks
  */
-function getMatchingOrigLineLC(editLine: number, chunks: Chunk[]): number {
-  for (let i = chunks.length - 1; i >= 0; --i) {
+function getMatchingOrigLineLC(toMatch: Chunk, chunks: Chunk[]): number {
+  let editLine = toMatch.editFrom;
+  for (let i = 0; i < chunks.length; ++i) {
     let chunk = chunks[i];
-    if (chunk.editTo === editLine) {
+    if (chunk.editFrom === editLine) {
       return chunk.origTo;
     }
-    if (chunk.editFrom < editLine) {
+    if (chunk.editFrom > editLine) {
       break;
     }
   }
-  return editLine;
+  return toMatch.editTo;
 }
 
 
@@ -561,7 +562,7 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
     let chunk = dv.lineChunks[i];
     let lines = [chunk.editTo, chunk.origTo];
     for (let o of others) {
-      lines.push(getMatchingOrigLineLC(chunk.editTo, o.lineChunks));
+      lines.push(getMatchingOrigLineLC(chunk, o.lineChunks));
     }
     if (linesToAlign.length > 0 &&
         linesToAlign[linesToAlign.length - 1][0] === lines[0]) {
@@ -598,11 +599,11 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
       let j = 0;
       for (; j < linesToAlign.length; j++) {
         let align = linesToAlign[j];
-        if (align[0] === chunk.editTo || valueIn(chunk.editTo, ignored)) {
+        if (valueIn(chunk.editTo, ignored)) {
           // Chunk already consumed, continue to next chunk
           j = -1;
           break;
-        } else if (align[0] > chunk.editTo) {
+        } else if (align[0] >= chunk.editTo) {
           // New chunk, which should be inserted in pos j,
           // such that linesToAlign are sorted on edit line
           break;
@@ -610,15 +611,22 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
       }
       if (j > -1) {
         let lines = [chunk.editTo,
-                     getMatchingOrigLineLC(chunk.editTo, dv.lineChunks)];
+                     getMatchingOrigLineLC(chunk, dv.lineChunks)];
         for (let k = 0; k < others.length; k++) {
           if (k === o) {
             lines.push(chunk.origTo);
           } else {
-            lines.push(getMatchingOrigLineLC(chunk.editTo, others[k].lineChunks));
+            lines.push(getMatchingOrigLineLC(chunk, others[k].lineChunks));
           }
         }
-        linesToAlign.splice(j, 0, lines);
+        if (linesToAlign.length > j && linesToAlign[j][0] === chunk.editTo) {
+          let last = linesToAlign[j];
+          for (let k = 0; k < lines.length; ++k) {
+            last[k] = Math.max(last[k], lines[k]);
+          }
+        } else {
+          linesToAlign.splice(j, 0, lines);
+        }
       }
     }
   }

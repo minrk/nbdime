@@ -201,18 +201,20 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
 
       if (valueIn(op, [DiffOp.ADD, DiffOp.REPLACE, DiffOp.REMOVE])) {
         // Replace is simply an add + remove, but without modifying keystring
+        let isReplace = op === DiffOp.REPLACE;
         if (valueIn(op, [DiffOp.ADD, DiffOp.REPLACE])) {
           let valr = stringify((e as IDiffAdd).value, level + 1, false) +
               postfix;
           let start = remote.length;
           let length = valr.length;
           // Modify range depending on add or replace:
-          if (op === DiffOp.ADD) {
-            length += keyString.length;
-          } else {
+          if (isReplace) {
             start += keyString.length;
+          } else {
+            length += keyString.length;
           }
-          if (!_entriesAfter(remainingKeys, ops, true)) {
+          // Check if postfix should be included or not
+          if (!_entriesAfter(remainingKeys, ops, true) || isReplace) {
             length -= postfix.length;
             if (op === DiffOp.ADD) {
               length += 1;  // Newline will still be added
@@ -226,19 +228,20 @@ function patchStringifiedObject(base: Object, diff: IDiffEntry[], level: number)
           let start = baseIndex;
           let length = valb.length;
           // Modify range depending on remove or replace:
-          if (op === DiffOp.REMOVE) {
-            length += keyString.length;
-          } else {
+          if (isReplace) {
             start += keyString.length;
+          } else {
+            length += keyString.length;
           }
-          if (!_entriesAfter(remainingKeys, ops, false)) {
+          // Check if postfix should be included or not
+          if (!_entriesAfter(remainingKeys, ops, false) || isReplace) {
             length -= postfix.length;
             if (op === DiffOp.REMOVE) {
               length += 1; // Newline will still be removed
             }
           }
           deletions.push(new DiffRangeRaw(start, length, e.source));
-          baseIndex += valb.length;
+          baseIndex += keyString.length + valb.length;
           baseKeys.splice(baseKeys.indexOf(key), 1);
         }
       } else if (op === DiffOp.PATCH) {

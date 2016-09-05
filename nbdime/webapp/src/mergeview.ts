@@ -526,15 +526,16 @@ function getMatchingOrigLine(editLine: number, chunks: Chunk[]): number {
 }
 
 
+/**
+ * From a line in base, find the matching line in another editor by line chunks
+ */
 function getMatchingOrigLineLC(editLine: number, chunks: Chunk[]): number {
-  for (let i = 0; i < chunks.length; i++) {
+  for (let i = chunks.length - 1; i >= 0; --i) {
     let chunk = chunks[i];
-    if (chunk.editFrom === editLine) {
-      return chunk.origFrom;
-    } else if (chunk.editTo === editLine) {
+    if (chunk.editTo === editLine) {
       return chunk.origTo;
     }
-    if (chunk.editFrom > editLine) {
+    if (chunk.editFrom < editLine) {
       break;
     }
   }
@@ -617,7 +618,7 @@ function findAlignedLines(dvs: DiffView[]): number[][] {
             lines.push(getMatchingOrigLineLC(chunk.editTo, others[k].lineChunks));
           }
         }
-        linesToAlign.splice(j - 1, 0, lines);
+        linesToAlign.splice(j, 0, lines);
       }
     }
   }

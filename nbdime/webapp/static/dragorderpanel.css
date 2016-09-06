@@ -6,6 +6,6 @@
   background-size:6px 6px;
 }
 
-.jp-DragOrderPanel  .p-Widget.jp-mod-dropTarget {
+.jp-DragOrderPanel .p-Widget.jp-mod-dropTarget {
   border-top: 1px dashed black;
 }

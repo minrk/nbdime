@@ -59,6 +59,8 @@
   width: 12px;
 }
 
+.CodeMirror-merge-pane-deleted, .CodeMirror-merge-pane-added { width: 100%; }
+
 .jp-Notebook-merge .CodeMirror-merge-spacer { background-color: #eee; }
 
 .jp-Notebook-merge .CodeMirror-merge-r-chunk { background-color: #dfd; }

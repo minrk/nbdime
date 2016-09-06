@@ -50,13 +50,17 @@ function shallowCopy(original) {
   let clone = Object.create(Object.getPrototypeOf(original));
 
   for (let k in original) {
-    if (Object.hasOwnProperty('constructor') && original[k].constructor === Function) {
+    // Don't copy function
+    if (original[k].hasOwnProperty('constructor') && original[k].constructor === Function) {
+      continue;
+    }
+    let pDesc = Object.getOwnPropertyDescriptor(original, k);
+    // Don't copy properties with getter
+    if (!pDesc || pDesc.get) {
       continue;
     }
     // copy each property into the clone
-    Object.defineProperty(clone, k,
-      Object.getOwnPropertyDescriptor(original, k)
-    );
+    Object.defineProperty(clone, k, pDesc);
   }
   return clone;
 }

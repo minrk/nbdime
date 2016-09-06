@@ -455,12 +455,9 @@ function _mergeTree(tree: DiffTree, sortedPaths: string[]): IDiffEntry[] {
 /**
  * Builds a diff for direct application on base. The `which` argument either
  * selects the 'local', 'remote' or 'merged' diffs.
- *
- * By supplying `stripPath`, a given number of paths can be removed from the
- * decisions common_path before applying.
  */
 export
-function buildDiffs(base: any, decisions: MergeDecision[], which: string): IDiffEntry[] {
+function buildDiffs(base: any, decisions: MergeDecision[], which: 'local' | 'remote' | 'merged'): IDiffEntry[] {
   let tree: DiffTree = {};
   let sortedPaths = [];
   let local = which === 'local';

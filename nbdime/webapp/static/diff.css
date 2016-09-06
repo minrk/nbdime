@@ -77,6 +77,8 @@
   left: 6%;
 }
 
+.CodeMirror-merge-pane-deleted, .CodeMirror-merge-pane-added { width: 75%; }
+
 .jp-Notebook-diff .CodeMirror-merge-r-chunk { background-color: #ffecec; }
 .jp-Notebook-diff .CodeMirror-merge-r-chunk-start { border-top: 1px solid #f8cbcb; }
 .jp-Notebook-diff .CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #f8cbcb; }

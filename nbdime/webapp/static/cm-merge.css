@@ -16,7 +16,6 @@
 }
 
 .CodeMirror-merge-pane-unchanged { width: 100%; }
-.CodeMirror-merge-pane-deleted, .CodeMirror-merge-pane-added { width: 75%; }
 .CodeMirror-merge-1pane .CodeMirror-merge-gap { width: 6%; }
 .CodeMirror-merge-2pane .CodeMirror-merge-pane { width: 47%; }
 .CodeMirror-merge-2pane .CodeMirror-merge-gap { width: 6%; }

@@ -1,5 +1,9 @@
 
-.jp-Collapsible-header-icon {
+.jp-CollapsiblePanel {
+    border: #39f solid 1pt;
+}
+
+.jp-CollapsiblePanel-header-icon {
     background-size: 1em;
     height: 1em;
     width: 1em;
@@ -9,15 +13,15 @@
     margin-top: .1em;
 }
 
-.jp-Collapsible-header-icon-opened {
+.jp-CollapsiblePanel-header-icon-opened {
     background-image: url("collapse_up.svg");
 }
 
-.jp-Collapsible-header-icon-closed {
+.jp-CollapsiblePanel-header-icon-closed {
     background-image: url("collapse_down.svg");
 }
 
-.jp-Collapsible-header {
+.jp-CollapsiblePanel-header {
     padding-top: .2em;
     padding-bottom: .2em;
     background-color: #adf;
@@ -26,11 +30,11 @@
     border-top: #39f solid 1pt;
 }
 
-.jp-Collapsible-container {
+.jp-CollapsiblePanel-container {
     overflow: hidden;
 }
 
-.jp-Collapsible-slider {
+.jp-CollapsiblePanel-slider {
 	/* complete liquid height based on the parent's height!! */
     height:100%;
 
@@ -41,7 +45,7 @@
             transition:         transform .3s ease, height 0.3s;
 }
 
-.jp-Collapsible-opened { 
+.jp-CollapsiblePanel-opened {
     /* visible */
     -webkit-transform: translate(0, 0%);
        -moz-transform: translate(0, 0%);
@@ -50,7 +54,7 @@
     height: 100%;
 }
 
-.jp-Collapsible-closed { 
+.jp-CollapsiblePanel-closed {
     /* completely offscreen */
     -webkit-transform: translate(0, -100%);
        -moz-transform: translate(0, -100%);

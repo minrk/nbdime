@@ -7,13 +7,20 @@ import {
 } from 'jupyterlab/lib/rendermime';
 
 import {
-  OutputWidget
+  OutputWidget, OutputAreaWidget, OutputAreaModel
 } from 'jupyterlab/lib/notebook/output-area';
 
+import {
+  IObservableList
+} from 'jupyterlab/lib/common/observablelist';
 
 import {
   loadModeByMIME
 } from 'jupyterlab/lib/codemirror';
+
+import {
+  nbformat
+} from 'jupyterlab/lib/notebook/notebook/nbformat';
 
 import {
   Widget
@@ -23,15 +30,13 @@ import {
   Panel, PanelLayout
 } from 'phosphor/lib/ui/panel';
 
-import 'codemirror/lib/codemirror.css';
+import {
+  FlexPanel
+} from './flexpanel';
 
 import {
   DiffView, MergeView, IMergeViewEditorConfiguration
 } from './mergeview';
-
-import {
-  nbformat
-} from 'jupyterlab/lib/notebook/notebook/nbformat';
 
 import {
   valueIn
@@ -47,8 +52,16 @@ import {
 } from './diffmodel';
 
 import {
-  NotebookMergeModel, CellMergeModel
+  NotebookMergeModel, CellMergeModel, MetadataMergeModel
 } from './mergemodel';
+
+
+import 'phosphor/styles/base.css';
+import 'codemirror/lib/codemirror.css';
+import 'jupyterlab/lib/index.css';
+import 'jupyterlab/lib/theme.css';
+import 'jupyterlab/lib/notebook/index.css';
+import 'jupyterlab/lib/notebook/theme.css';
 
 
 const NBDIFF_CLASS = 'jp-Notebook-diff';
@@ -81,14 +94,15 @@ const DIFF_CLASSES = ['jp-Diff-base', 'jp-Diff-remote'];
 const MERGE_CLASSES = [BASE_MERGE_CLASS, LOCAL_MERGE_CLASS,
     REMOTE_MERGE_CLASS, MERGED_MERGE_CLASS];
 
-const COLLAPISBLE_HEADER = 'jp-Collapsible-header';
-const COLLAPISBLE_HEADER_ICON = 'jp-Collapsible-header-icon';
-const COLLAPISBLE_HEADER_ICON_OPEN = 'jp-Collapsible-header-icon-opened';
-const COLLAPISBLE_HEADER_ICON_CLOSED = 'jp-Collapsible-header-icon-closed';
-const COLLAPISBLE_SLIDER = 'jp-Collapsible-slider';
-const COLLAPSIBLE_OPEN = 'jp-Collapsible-opened';
-const COLLAPSIBLE_CLOSED = 'jp-Collapsible-closed';
-const COLLAPSIBLE_CONTAINER = 'jp-Collapsible-container';
+const COLLAPSIBLE_CLASS = 'jp-CollapsiblePanel';
+const COLLAPSIBLE_HEADER = 'jp-CollapsiblePanel-header';
+const COLLAPSIBLE_HEADER_ICON = 'jp-CollapsiblePanel-header-icon';
+const COLLAPSIBLE_HEADER_ICON_OPEN = 'jp-CollapsiblePanel-header-icon-opened';
+const COLLAPSIBLE_HEADER_ICON_CLOSED = 'jp-CollapsiblePanel-header-icon-closed';
+const COLLAPSIBLE_SLIDER = 'jp-CollapsiblePanel-slider';
+const COLLAPSIBLE_OPEN = 'jp-CollapsiblePanel-opened';
+const COLLAPSIBLE_CLOSED = 'jp-CollapsiblePanel-closed';
+const COLLAPSIBLE_CONTAINER = 'jp-CollapsiblePanel-container';
 
 
 /**
@@ -109,76 +123,77 @@ const stringDiffMimeTypes = ['text/html', 'text/plain'];
 
 
 /**
- * CollapsibleWidget
+ * CollapsiblePanel
  */
-class CollapsibleWidget extends Widget {
-  static createHeader(headerTitle?: string): HTMLSpanElement {
-    let header = document.createElement('div');
-    header.className = COLLAPISBLE_HEADER;
+class CollapsiblePanel extends Panel {
+  static createHeader(headerTitle?: string): Panel {
+    let header = new Panel();
+    header.addClass(COLLAPSIBLE_HEADER);
     if (headerTitle) {
       // let title = document.createElement('span');
-      header.innerText = headerTitle;
+      header.node.innerText = headerTitle;
       // header.appendChild(title);
     }
     let button = document.createElement('span');
-    button.className = COLLAPISBLE_HEADER_ICON;
-    header.appendChild(button);
+    button.className = COLLAPSIBLE_HEADER_ICON;
+    header.node.appendChild(button);
 
     return header;
   }
 
   constructor(inner: Widget, headerTitle?: string, collapsed?: boolean) {
     super();
+    this.addClass(COLLAPSIBLE_CLASS);
     this.inner = inner;
-    let constructor = this.constructor as typeof CollapsibleWidget;
+    let constructor = this.constructor as typeof CollapsiblePanel;
     let header = constructor.createHeader(headerTitle);
-    this.button = header.getElementsByClassName(
-      COLLAPISBLE_HEADER_ICON)[0] as HTMLElement;
-    header.onclick = this.toggleCollapsed.bind(this);
-    this.node.appendChild(header);
-    this.container = document.createElement('div');
-    this.container.className = COLLAPSIBLE_CONTAINER;
-    this.slider = document.createElement('div');
-    this.slider.classList.add(COLLAPISBLE_SLIDER);
-    this.slider.appendChild(inner.node);
-    this.container.appendChild(this.slider);
-    this.node.appendChild(this.container);
+    this.button = header.node.getElementsByClassName(
+      COLLAPSIBLE_HEADER_ICON)[0] as HTMLElement;
+    header.node.onclick = this.toggleCollapsed.bind(this);
+    this.addWidget(header);
+    this.container = new Panel();
+    this.container.addClass(COLLAPSIBLE_CONTAINER);
+    this.slider = new Panel();
+    this.slider.addClass(COLLAPSIBLE_SLIDER);
+    this.slider.addWidget(inner);
+    this.container.addWidget(this.slider);
+    this.addWidget(this.container);
 
-    this.slider.classList.add(
+    this.slider.addClass(
       collapsed === true ?
       COLLAPSIBLE_CLOSED :
       COLLAPSIBLE_OPEN);
     this.button.classList.add(
       collapsed === true ?
-      COLLAPISBLE_HEADER_ICON_CLOSED :
-      COLLAPISBLE_HEADER_ICON_OPEN);
+      COLLAPSIBLE_HEADER_ICON_CLOSED :
+      COLLAPSIBLE_HEADER_ICON_OPEN);
   }
 
   toggleCollapsed(): void {
     let slider = this.slider;
     let button = this.button;
     if (this.collapsed) {
-      slider.classList.remove(COLLAPSIBLE_CLOSED);
-      slider.classList.add(COLLAPSIBLE_OPEN);
-      button.classList.remove(COLLAPISBLE_HEADER_ICON_CLOSED);
-      button.classList.add(COLLAPISBLE_HEADER_ICON_OPEN);
+      slider.removeClass(COLLAPSIBLE_CLOSED);
+      slider.addClass(COLLAPSIBLE_OPEN);
+      button.classList.remove(COLLAPSIBLE_HEADER_ICON_CLOSED);
+      button.classList.add(COLLAPSIBLE_HEADER_ICON_OPEN);
 
     } else {
-      slider.classList.remove(COLLAPSIBLE_OPEN);
-      slider.classList.add(COLLAPSIBLE_CLOSED);
-      button.classList.remove(COLLAPISBLE_HEADER_ICON_OPEN);
-      button.classList.add(COLLAPISBLE_HEADER_ICON_CLOSED);
+      slider.removeClass(COLLAPSIBLE_OPEN);
+      slider.addClass(COLLAPSIBLE_CLOSED);
+      button.classList.remove(COLLAPSIBLE_HEADER_ICON_OPEN);
+      button.classList.add(COLLAPSIBLE_HEADER_ICON_CLOSED);
     }
   }
 
   get collapsed(): boolean {
-    return this.slider.classList.contains(COLLAPSIBLE_CLOSED);
+    return this.slider.hasClass(COLLAPSIBLE_CLOSED);
   }
 
   inner: Widget;
 
-  slider: HTMLElement;
-  container: HTMLElement;
+  slider: Panel;
+  container: Panel;
   button: HTMLElement;
 }
 
@@ -307,6 +322,202 @@ class RenderableOutputView extends Widget {
 }
 
 
+
+/**
+ * Widget for showing side by side comparison and picking of merge outputs
+ */
+class RenderableOutputsMergeView extends DragOrderPanel {
+
+  static makeOutputsDraggable(area: OutputAreaWidget): void {
+    let i = area.layout.iter();
+    for (let w = i.next(); w !== undefined; w = i.next()) {
+      DragOrderPanel.makeHandle(w);
+    }
+  }
+
+  /**
+   *
+   */
+  constructor(merged: nbformat.IOutput[],
+              classes: string[], rendermime: IRenderMime,
+              base?: nbformat.IOutput[], remote?: nbformat.IOutput[],
+              local?: nbformat.IOutput[]) {
+    super();
+
+    if (!base !== !remote || !base !== !local) {
+      // Assert that either none, or all of base/remote/local are given
+      throw 'Renderable outputs merge-view either takes only merged output ' +
+        'or a full set of four output lists.';
+    }
+
+    if (base) {
+      this.base = new OutputAreaModel();
+      for (let output of base) {
+          this.base.add(output);
+      }
+      this.remote = new OutputAreaModel();
+      for (let output of remote) {
+          this.remote.add(output);
+      }
+      this.local = new OutputAreaModel();
+      for (let output of local) {
+          this.local.add(output);
+      }
+    }
+    this.merged = new OutputAreaModel();
+    for (let output of merged) {
+        this.merged.add(output);
+    }
+    this.rendermime = rendermime;
+    this.panes = [];
+
+    this.init(classes);
+  }
+
+  init(classes: string[]): void {
+    let row = new FlexPanel({direction: 'left-to-right'});
+    if (this.local) {
+      let leftPane = new OutputAreaWidget({rendermime: this.rendermime});
+      leftPane.addClass(classes[1]);
+      leftPane.model = this.local;
+      row.addWidget(leftPane);
+      this.panes.push(leftPane);
+    }
+    if (this.base) {
+      let basePane = new OutputAreaWidget({rendermime: this.rendermime});
+      basePane.addClass(classes[0]);
+      basePane.model = this.base;
+      row.addWidget(basePane);
+      this.panes.push(basePane);
+    }
+    if (this.remote) {
+      let rightPane = new OutputAreaWidget({rendermime: this.rendermime});
+      rightPane.addClass(classes[2]);
+      rightPane.model = this.remote;
+      row.addWidget(rightPane);
+      this.panes.push(rightPane);
+    }
+    if (row.widgets.length > 0) {
+      this.addWidget(row);
+      row = new FlexPanel({direction: 'left-to-right'});
+    }
+    this.mergePane = new OutputAreaWidget({rendermime: this.rendermime});
+    this.mergePane.addClass(classes[3]);
+    this.mergePane.model = this.merged;
+    row.addWidget(this.mergePane);
+    this.panes.push(this.mergePane);
+    this.addWidget(row);
+
+    for (let p of this.panes) {
+      RenderableOutputsMergeView.makeOutputsDraggable(p);
+    }
+  }
+
+  /**
+   * Overrided version to allow drag and drop from source lists to merged list
+   */
+  protected findDragTargetKey(node: HTMLElement): any {
+    // First check for a drag handle
+    let handle = this.findDragHandle(node);
+    if (handle === null) {
+      return null;
+    }
+
+    // Next find out which pane it belongs to, and which output it belongs to
+    return this.keyFromTarget(handle);
+  }
+
+  /**
+   * Overrided version to allow identifying source pane and source output
+   */
+  protected keyFromTarget(node: HTMLElement): any {
+    for (let pane of this.panes) {
+      let child = DragOrderPanel.findChild(pane.node, node);
+      if (child !== null) {
+        let paneIndex = this.panes.indexOf(pane);
+        return [paneIndex, DragOrderPanel.getIndexOfChildNode(pane, child)];
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Overrided version to allow identifying source pane and source output
+   */
+  protected targetFromKey(key: any): Widget {
+    let indices = key as number[];
+    let paneIndex = indices[0];
+    let outputIndex = indices[1];
+    let pane = this.panes[paneIndex];
+    return (pane.layout as PanelLayout).widgets.at(outputIndex);
+  }
+
+
+  /**
+   * Called when something has been dropped in the panel.
+   */
+  protected onMove(from: number[], to: number[]): void {
+    let paneFrom = from[0];
+    let paneTo = to[0];
+    if (this.panes[paneTo] !== this.mergePane) {
+      // Shouldn't happen if drop target code is correct...
+      return;
+    }
+    let outputFrom = from[1];
+    let outputTo = to[1];
+    let adjustedTo = outputTo;
+    if (paneFrom === paneTo) {
+      if (outputTo > outputFrom) {
+        // Have to adjust index for insertWidget in same instance
+        adjustedTo -= 1;
+      } else if (outputFrom === outputTo) {
+        // No-op, same position
+        return;
+      }
+    }
+    let toModel = this.panes[paneTo].model;
+    let fromModel = this.panes[paneFrom].model;
+    let toList = (toModel as any)._list as IObservableList<OutputAreaModel.Output>;
+    if (paneTo !== paneFrom) {
+      toList.insert(adjustedTo, fromModel.get(outputFrom));
+    } else {
+      toList.move(outputFrom, adjustedTo);
+      if (adjustedTo + 1 < toModel.length) {
+        (this.panes[paneTo] as any)._updateChild(adjustedTo + 1);
+      }
+      (this.panes[paneTo] as any)._updateChild(outputFrom);
+    }
+    (this.panes[paneTo] as any)._updateChild(adjustedTo);
+    RenderableOutputsMergeView.makeOutputsDraggable(this.panes[paneTo]);
+    this.moved.emit({from: from, to: to});
+  }
+
+  /**
+   * Find a drop target from a given node
+   *
+   * Returns null if no valid drop target was found.
+   */
+  protected findDropTarget(node: HTMLElement): HTMLElement {
+    // Only valid drop target is in merge pane!
+    return DragOrderPanel.findChild(this.mergePane.node, node);
+  }
+
+  base: OutputAreaModel = null;
+
+  remote: OutputAreaModel = null;
+
+  local: OutputAreaModel = null;
+
+  merged: OutputAreaModel;
+
+  mergePane: OutputAreaWidget;
+
+  panes: OutputAreaWidget[];
+
+  rendermime: IRenderMime;
+}
+
+
 /**
  * CellDiffWidget for cell changes
  */
@@ -372,7 +583,7 @@ class CellDiffWidget extends Panel {
         changed = changed || !o.unchanged || o.added || o.deleted;
       }
       let header = changed ? 'Outputs changed' : 'Outputs unchanged';
-      let collapser = new CollapsibleWidget(container, header, !changed);
+      let collapser = new CollapsiblePanel(container, header, !changed);
       collapser.addClass(OUTPUTS_ROW_CLASS);
       this.addWidget(collapser);
     }
@@ -416,7 +627,7 @@ class CellDiffWidget extends Panel {
       throw 'Unrecognized model type.';
     }
     if (model.collapsible) {
-      view = new CollapsibleWidget(
+      view = new CollapsiblePanel(
           view, model.collapsibleHeader, model.startCollapsed);
     }
     let container = new Panel();
@@ -432,7 +643,7 @@ class CellDiffWidget extends Panel {
       delSpacer.node.textContent = 'Output deleted';
       container.addWidget(delSpacer);
       container.addClass(DELETED_DIFF_CLASS);
-    } else if (model.unchanged && !parent.unchanged) {
+    } else if (model.unchanged) {
       container.addClass(UNCHANGED_DIFF_CLASS);
     } else {
       container.addClass(TWOWAY_DIFF_CLASS);
@@ -464,7 +675,7 @@ class CellDiffWidget extends Panel {
  */
 export
 class MetadataDiffWidget extends Panel {
-  constructor(model: IDiffModel) {
+  constructor(model: IStringDiffModel) {
     super();
     this._model = model;
     console.assert(!model.added && !model.deleted);
@@ -476,18 +687,17 @@ class MetadataDiffWidget extends Panel {
     let model = this._model;
     if (!model.unchanged) {
       this.addClass(TWOWAY_DIFF_CLASS);
-      console.assert(model instanceof StringDiffModel);
       let view: Widget = new NbdimeMergeView(
-        model as StringDiffModel, DIFF_CLASSES);
+        model, DIFF_CLASSES);
       if (model.collapsible) {
-        view = new CollapsibleWidget(
+        view = new CollapsiblePanel(
           view, model.collapsibleHeader, model.startCollapsed);
       }
       this.addWidget(view);
     }
   }
 
-  private _model: IDiffModel;
+  private _model: IStringDiffModel;
 }
 
 
@@ -531,6 +741,36 @@ class NotebookDiffWidget extends Widget {
  */
 export
 class CellMergeWidget extends Panel {
+
+  static createMergeView(local: IDiffModel, remote: IDiffModel, merged: IDiffModel,
+                         editorClasses: string[]): Widget {
+    let view: Widget = null;
+    if (merged instanceof StringDiffModel) {
+      view = new NbdimeMergeView(remote as IStringDiffModel, editorClasses,
+        local as IStringDiffModel, merged);
+    }
+    return view;
+  }
+
+  protected static getOutputs(models: OutputDiffModel[], base?: boolean): nbformat.IOutput[] {
+    if (!models) {
+      return null;
+    }
+    let raw: nbformat.IOutput[] = [];
+    for (let m of models) {
+      if (base === true) {
+        if (m.base) {
+          raw.push(m.base);
+        }
+      } else {
+        if (m.remote) {
+          raw.push(m.remote);
+        }
+      }
+    }
+    return raw;
+  }
+
   /**
    *
    */
@@ -549,6 +789,117 @@ class CellMergeWidget extends Panel {
     let model = this.model;
     let CURR_CLASSES = MERGE_CLASSES.slice();  // copy
 
+    this.createHeader();
+
+    /*
+     Two different display layoutsnding on cell merge type:
+     1. Unchanged or one way insert/delete of cell, or identical insert/delete:
+        Single r/w editor (merged), with appropriate coloring for insert/delete
+     2. Everything else:
+        Full 4x merge view
+    */
+    let ladd = model.local && model.local.added;
+    let ldel = model.local && model.local.deleted;
+    let radd = model.remote && model.remote.added;
+    let rdel = model.remote && model.remote.deleted;
+    if (ladd && !radd || ldel && !rdel) {
+      this.headerTitle = ladd ? 'Cell added locally' : 'Cell deleted locally';
+    } else if (radd && !ladd || rdel && !ldel) {
+      this.headerTitle = radd ? 'Cell added remotely' : 'Cell deleted remotely';
+    }
+
+    if (valueIn(null, model.subModels) || (  // One sided change
+          model.local.unchanged && model.remote.unchanged &&
+          model.merged.unchanged) ||  // Unchanged
+          model.local.added !== model.remote.added ||  // Onesided addition
+          model.local.added ||  // Implies identical addition
+          model.local.deleted && model.remote.deleted   // Deletion on both
+          ) {
+      // Add single view of source:
+      let view = CellDiffWidget.createView(
+        model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
+      if (ladd && !radd || ldel && !rdel) {
+        this.addClass('jp-Merge-oneway-local');
+      } else if (radd && !ladd || rdel && !ldel) {
+        this.addClass('jp-Merge-oneway-remote');
+      } else if (ldel && rdel) {
+        this.headerTitle = 'Deleted on both sides';
+        this.addClass('jp-Merge-twoway-deletion');
+      } else if (ladd && radd) {
+        this.headerTitle = 'Added on both sides';
+        this.addClass('jp-Merge-twoway-addition');
+      }
+      view.addClass(SOURCE_ROW_CLASS);
+      this.addWidget(view);
+    } else {
+      // Setup full 4-way mergeview of source, metadata and outputs
+      // as needed (if changed). Source/metadata/output are each a "row"
+      let sourceView: Widget = null;
+      if (model.local.source.unchanged && model.remote.source.unchanged &&
+          model.merged.source.unchanged) {
+        // Use single unchanged view of source
+        sourceView = CellDiffWidget.createView(
+          model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
+      } else {
+        sourceView = CellMergeWidget.createMergeView(
+          model.local.source,
+          model.remote.source,
+          model.merged.source,
+          CURR_CLASSES);
+      }
+      sourceView.addClass(SOURCE_ROW_CLASS);
+      this.addWidget(sourceView);
+
+      let metadataChanged = false;
+      let outputsChanged = false;
+      for (let m of model.subModels) {
+        if (m.deleted) {
+          continue;
+        }
+        metadataChanged = metadataChanged || (
+          m && m.metadata && !m.metadata.unchanged);
+
+        if (m && m.outputs && m.outputs.length > 0) {
+          for (let o of m.outputs) {
+            outputsChanged = outputsChanged || !o.unchanged;
+          }
+        }
+      }
+
+      if (metadataChanged) {
+        let metadataView = CellMergeWidget.createMergeView(
+            model.local.metadata,
+            model.remote.metadata,
+            model.merged.metadata,
+            CURR_CLASSES);
+        let container = new Panel();
+        container.addWidget(metadataView);
+
+        let header = 'Metadata changed';
+        let collapser = new CollapsiblePanel(container, header, true);
+        collapser.addClass(METADATA_ROW_CLASS);
+        this.addWidget(collapser);
+      }
+      if (outputsChanged || (
+            model.merged.outputs && model.merged.outputs.length > 0)) {
+        // TODO: Figure out how to deal with outputs
+        let baseOut = CellMergeWidget.getOutputs(model.merged.outputs, true);
+        let localOut = CellMergeWidget.getOutputs(model.local.outputs);
+        let remoteOut = CellMergeWidget.getOutputs(model.remote.outputs);
+        let mergedOut = CellMergeWidget.getOutputs(model.merged.outputs);
+        let view = new RenderableOutputsMergeView(
+          mergedOut, MERGE_CLASSES, this._rendermime,
+          baseOut, remoteOut, localOut);
+
+        let header = outputsChanged ? 'Outputs changed' : 'Outputs unchanged';
+        let collapser = new CollapsiblePanel(view, header, !outputsChanged);
+        collapser.addClass(OUTPUTS_ROW_CLASS);
+        this.addWidget(collapser);
+      }
+    }
+  }
+
+  protected createHeader(): void {
     let header = new Panel();
     header.addClass(CELL_HEADER_CLASS);
 
@@ -577,110 +928,20 @@ class CellMergeWidget extends Panel {
         this.removeClass(MARKED_DELETE);
       }
     };
+    // Create label for checkbox:
     w = new Widget();
     let label = document.createElement('label');
     label.innerText = 'Delete cell';
+    // Combine checkbox and label:
     label.insertBefore(this.deleteToggle, label.childNodes[0]);
+    // Add checkbox to header:
     w.node.appendChild(label);
     w.addClass('jp-Merge-delete-toggle');
     header.addWidget(w);
+
+    // Add header to widget
     this.addWidget(header);
     this.header = header;
-
-    /*
-     1. Unchanged or one way insert/delete of cell, or identical insert/delete:
-        Single r/w editor (merged), with appropriate coloring for insert/delete
-     2. Everything else:
-        Full 4x merge view
-    */
-    let ladd = model.local && model.local.added;
-    let ldel = model.local && model.local.deleted;
-    let radd = model.remote && model.remote.added;
-    let rdel = model.remote && model.remote.deleted;
-    if (ladd && !radd || ldel && !rdel) {
-      this.headerTitle = ladd ? 'Cell added locally' : 'Cell deleted locally';
-    } else if (radd && !ladd || rdel && !ldel) {
-      this.headerTitle = radd ? 'Cell added remotely' : 'Cell deleted remotely';
-    }
-
-    if (valueIn(null, model.subModels) || (  // One sided change
-          model.local.unchanged && model.remote.unchanged &&
-          model.merged.unchanged) ||  // Unchanged
-          model.local.added !== model.remote.added ||  // Onesided addition
-          model.local.added ||  // Implies identical addition
-          model.local.deleted && model.remote.deleted   // Deletion on both
-          ) {
-      let view = CellDiffWidget.createView(
-        model.merged.source, model.merged, CURR_CLASSES, this._rendermime);
-      if (ladd && !radd || ldel && !rdel) {
-        this.addClass('jp-Merge-oneway-local');
-      } else if (radd && !ladd || rdel && !ldel) {
-        this.addClass('jp-Merge-oneway-remote');
-      } else if (ldel && rdel) {
-        this.headerTitle = 'Deleted on both sides';
-        this.addClass('jp-Merge-twoway-deletion');
-      } else if (ladd && radd) {
-        this.headerTitle = 'Added on both sides';
-        this.addClass('jp-Merge-twoway-addition');
-      }
-      this.addWidget(view);
-    } else {
-      // Setup full 4-way mergeview of source, and same for metadata and outputs
-      // as needed (if changed). Source/metadata/output are each a "row"
-      let sourceView = this.createMergeView(
-        model.local.source,
-        model.remote.source,
-        model.merged.source,
-        CURR_CLASSES);
-      sourceView.addClass(SOURCE_ROW_CLASS);
-      this.addWidget(sourceView);
-
-      let metadataChanged = false;
-      let outputsChanged = false;
-      for (let m of model.subModels) {
-        if (m.deleted) {
-          continue;
-        }
-        metadataChanged = metadataChanged || (
-          m && m.metadata && !m.metadata.unchanged);
-
-        if (m && m.outputs && m.outputs.length > 0) {
-          for (let o of m.outputs) {
-            outputsChanged = outputsChanged || !o.unchanged;
-          }
-        }
-      }
-
-      if (metadataChanged) {
-        let metadataView = this.createMergeView(
-            model.local.metadata,
-            model.remote.metadata,
-            model.merged.metadata,
-            CURR_CLASSES);
-        metadataView.addClass(METADATA_ROW_CLASS);
-        this.addWidget(metadataView);
-      }
-      if (outputsChanged || (
-            model.merged.outputs && model.merged.outputs.length > 0)) {
-        let container = new Panel();
-        // TODO: Figure out how to deal with outputs
-
-        let header = outputsChanged ? 'Outputs changed' : 'Outputs unchanged';
-        let collapser = new CollapsibleWidget(container, header, !outputsChanged);
-        collapser.addClass(OUTPUTS_ROW_CLASS);
-        this.addWidget(collapser);
-      }
-    }
-  }
-
-  createMergeView(local: IDiffModel, remote: IDiffModel, merged: IDiffModel,
-                  editorClasses: string[]): Widget {
-    let view: Widget = null;
-    if (merged instanceof StringDiffModel) {
-      view = new NbdimeMergeView(remote as IStringDiffModel, editorClasses,
-        local as IStringDiffModel, merged);
-    }
-    return view;
   }
 
   mimetype: string;
@@ -707,6 +968,32 @@ class CellMergeWidget extends Panel {
   protected _rendermime: IRenderMime = null;
 }
 
+/**
+ * MetadataWidget for changes to Notebook-level metadata
+ */
+export
+class MetadataMergeWidget extends Panel {
+  constructor(model: MetadataMergeModel) {
+    super();
+    this._model = model;
+    this.addClass(ROOT_METADATA_CLASS);
+    this.init();
+  }
+
+  init() {
+    let model = this._model;
+    let CURR_CLASSES = MERGE_CLASSES.slice();  // copy
+
+    let view: Widget = new NbdimeMergeView(
+      model.remote, CURR_CLASSES, model.local, model.merged);
+    view = new CollapsiblePanel(
+      view, 'Notebook metadata changed', true);
+    this.addWidget(view);
+  }
+
+  private _model: MetadataMergeModel;
+}
+
 
 /**
  * NotebookMergeWidget
@@ -722,9 +1009,9 @@ class NotebookMergeWidget extends DragOrderPanel {
 
     this.addClass(NBMERGE_CLASS);
 
-    /*if (model.metadata) {
-      layout.addChild(new MetadataDiffWidget(model.merged.metadata));
-    }*/
+    if (model.metadata) {
+      layout.addWidget(new MetadataMergeWidget(model.metadata));
+    }
     for (let c of model.cells) {
       layout.addWidget(new CellMergeWidget(c, rendermime, model.mimetype));
     }

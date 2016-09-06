@@ -16,6 +16,9 @@
 
 .jp-Metadata-diff {
   margin-bottom: 20px;
+}
+
+.jp-Metadata-diff .jp-CollapsiblePanel {
   border: solid black thin;
 }
 
@@ -141,6 +144,14 @@
 
 .jp-Cell-merge.jp-mod-todelete .jp-Merge-cellHeader {
   background-color: #ffdddd;
+}
+
+.jp-Cellrow-outputs .jp-OutputArea {
+  border: #666 solid 1pt;
+}
+
+.jp-Cellrow-outputs .p-FlexPanel:last-of-type .jp-OutputArea {
+  margin-top: 5px;
 }
 
 

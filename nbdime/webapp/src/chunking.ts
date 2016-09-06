@@ -224,6 +224,14 @@ class Chunker {
   protected _currentGhost: Chunk = null;
 }
 
+
+/**
+ * A chunker that only chunks diffs within lines with each other
+ *
+ * While the default chunker would chunk together a change at the end of one
+ * line with a change at the start of the next line, this chunker will keep
+ * each line separate. This is useful e.g. for merging.
+ */
 export
 class LineChunker extends Chunker {
   protected _overlapChunk(chunk: Chunk, range: DiffRangePos, isAddition: boolean): boolean {

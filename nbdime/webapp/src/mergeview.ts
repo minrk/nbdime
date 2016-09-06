@@ -729,7 +729,7 @@ class MergeView {
       options.remote.base : options.remote.remote);
     options.lineNumbers = options.lineNumbers !== false;
 
-    /**
+    /*
      * Different cases possible:
      *   - Local and merged supplied: Merge:
      *     - Always use left, right and merge panes
@@ -739,7 +739,7 @@ class MergeView {
      *     - Entire content added/deleted: Use only base editor,
      *       but with different classes
      *     - Partial changes: Use base + right editor
-     * */
+     */
 
     let hasMerge = local !== null && merged !== null;
     if (hasMerge) {

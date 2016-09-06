@@ -1,0 +1,20 @@
+
+.p-FlexPanel {
+  display: flex;
+}
+
+.p-mod-left-to-right {
+  flex-direction: row;
+}
+
+.p-mod-right-to-left {
+  flex-direction: row-reverse;
+}
+
+.p-mod-top-to-bottom {
+  flex-direction: column;
+}
+
+.p-mod-bottom-to-top {
+  flex-direction: column-reverse;
+}

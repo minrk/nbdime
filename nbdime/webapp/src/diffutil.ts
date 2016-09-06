@@ -415,40 +415,43 @@ let addops = [DiffOp.ADD, DiffOp.SEQINSERT];
 
 /**
  * Check whether existing collection of diff ops shares a key with the new
- * diffop, and if they  also have the same op type. Assumes exsiting diff ops
- * are sorted on key.
+ * diffop, and if they  also have the same op type.
  */
 function overlaps(existing: IDiffEntry[], newv: IDiffEntry): boolean {
   if (existing.length < 1) {
     return false;
   }
-  let e = existing[existing.length - 1];
-  if (e.op === newv.op) {
-    if (e.key === newv.key) {
-      // Found a match
-      return true;
-    } else if (e.op === DiffOp.SEQDELETE) {
-      let r = e as IDiffRemoveRange;
-      if (r.key + r.length >= newv.key) {
-        // Overlapping deletes
-        // Above check is open ended to allow for sanity check here:
-        if (r.key + r.length !== newv.key) {
-          throw 'Overlapping delete diff ops: ' +
-            'Two operation remove same characters!';
+  for (let e of existing) {
+    if (e.op === newv.op) {
+      if (e.key === newv.key) {
+        // Found a match
+        return true;
+      } else if (e.op === DiffOp.SEQDELETE) {
+        let r = e as IDiffRemoveRange;
+        let first = r.key < newv.key ? r : newv as IDiffRemoveRange;
+        let last = r.key > newv.key ? r : newv as IDiffRemoveRange;
+        if (first.key + first.length >= last.key) {
+          // Overlapping deletes
+          // Above check is open ended to allow for sanity check here:
+          if (first.key + first.length !== last.key) {
+            throw 'Overlapping delete diff ops: ' +
+              'Two operation remove same characters!';
+          }
+          return true;
         }
       }
+    } else if (valueIn(e.op, addops) && valueIn(newv.op, addops) &&
+              e.key === newv.key) {
+      // Addrange and single add can both point to same key
+      return true;
     }
-  } else if (valueIn(e.op, addops) && valueIn(newv.op, addops) &&
-             e.key === newv.key) {
-    // Addrange and single add can both point to same key
-    return true;
   }
   return false;
 }
 
 
 /**
- * Combines two ops into a new one tha does the same
+ * Combines two ops into a new one that does the same
  */
 function combineOps(a: IDiffEntry, b: IDiffEntry): IDiffEntry {
   if (valueIn(b.op, addops)) {

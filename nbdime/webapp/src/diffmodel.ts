@@ -555,8 +555,8 @@ export class OutputDiffModel implements IDiffModel {
  * Diff model for individual Notebook Cells
  */
 export class CellDiffModel {
-  constructor(source: IDiffModel, metadata: IDiffModel,
-              outputs: IDiffModel[], cellType: string) {
+  constructor(source: IStringDiffModel, metadata: IStringDiffModel,
+              outputs: OutputDiffModel[], cellType: string) {
     this.source = source;
     this.metadata = metadata;
     this.outputs = outputs;
@@ -571,17 +571,17 @@ export class CellDiffModel {
   /**
    * Diff model for the source field.
    */
-  source: IDiffModel;
+  source: IStringDiffModel;
 
   /**
    * Diff model for the metadata field. Can be null.
    */
-  metadata: IDiffModel;
+  metadata: IStringDiffModel;
 
   /**
    * Diff model for the outputs field. Can be null.
    */
-  outputs: IDiffModel[];
+  outputs: OutputDiffModel[];
 
   /**
    * The type of the notebook cell
@@ -621,9 +621,9 @@ export class CellDiffModel {
 
 export function createPatchedCellDiffModel(
     base: nbformat.ICell, diff: IDiffEntry[], nbMimetype: string): CellDiffModel {
-  let source: IDiffModel = null;
-  let metadata: IDiffModel = null;
-  let outputs: IDiffModel[] = null;
+  let source: StringDiffModel = null;
+  let metadata: StringDiffModel = null;
+  let outputs: OutputDiffModel[] = null;
 
   let subDiff = getDiffKey(diff, 'source');
   if (subDiff) {
@@ -631,7 +631,7 @@ export function createPatchedCellDiffModel(
   } else {
     source = createDirectDiffModel(base.source, base.source);
   }
-  setMimetypeFromCellType(source as IStringDiffModel, base, nbMimetype);
+  setMimetypeFromCellType(source, base, nbMimetype);
 
   subDiff = getDiffKey(diff, 'metadata');
   if (base.metadata !== undefined) {
@@ -649,11 +649,11 @@ export function createPatchedCellDiffModel(
 
 export function createUnchangedCellDiffModel(
       base: nbformat.ICell, nbMimetype: string): CellDiffModel {
-  let metadata: IDiffModel = null;
-  let outputs: IDiffModel[] = null;
+  let metadata: StringDiffModel = null;
+  let outputs: OutputDiffModel[] = null;
 
   let source = createDirectDiffModel(base.source, base.source);
-  setMimetypeFromCellType(source as IStringDiffModel, base, nbMimetype);
+  setMimetypeFromCellType(source, base, nbMimetype);
   if (base.metadata !== undefined) {
     metadata = createDirectDiffModel(base.metadata, base.metadata);
   }
@@ -666,11 +666,11 @@ export function createUnchangedCellDiffModel(
 
 export function createAddedCellDiffModel(
       remote: nbformat.ICell, nbMimetype: string): CellDiffModel {
-  let metadata: IDiffModel = null;
-  let outputs: IDiffModel[] = null;
+  let metadata: StringDiffModel = null;
+  let outputs: OutputDiffModel[] = null;
 
   let source = createDirectDiffModel(null, remote.source);
-  setMimetypeFromCellType(source as IStringDiffModel, remote, nbMimetype);
+  setMimetypeFromCellType(source, remote, nbMimetype);
   if (remote.metadata !== undefined) {
     metadata = createDirectDiffModel(null, remote.metadata);
   }
@@ -683,12 +683,12 @@ export function createAddedCellDiffModel(
 
 export function createDeletedCellDiffModel(
       base: nbformat.ICell, nbMimetype: string): CellDiffModel {
-  let source: IDiffModel = null;
-  let metadata: IDiffModel = null;
-  let outputs: IDiffModel[] = null;
+  let source: StringDiffModel = null;
+  let metadata: StringDiffModel = null;
+  let outputs: OutputDiffModel[] = null;
 
   source = createDirectDiffModel(base.source, null);
-  setMimetypeFromCellType(source as IStringDiffModel, base, nbMimetype);
+  setMimetypeFromCellType(source, base, nbMimetype);
   if (base.metadata !== undefined) {
     metadata = createDirectDiffModel(base.metadata, null);
   }
@@ -699,9 +699,10 @@ export function createDeletedCellDiffModel(
 }
 
 
+export
 function makeOutputModels(base: nbformat.IOutput[], remote: nbformat.IOutput[],
-                          diff?: IDiffEntry[]) : IDiffModel[] {
-  let models: IDiffModel[] = [];
+                          diff?: IDiffEntry[]) : OutputDiffModel[] {
+  let models: OutputDiffModel[] = [];
   if (remote === null && !diff) {
     // Cell deleted
     for (let o of base) {
@@ -846,7 +847,7 @@ export class NotebookDiffModel {
   /**
    * Diff model of the notebook's root metadata field
    */
-  metadata: IDiffModel;
+  metadata: IStringDiffModel;
 
   /**
    * The default MIME type according to the notebook's root metadata

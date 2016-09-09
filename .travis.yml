@@ -4,6 +4,8 @@ python:
     - 3.4
     - 3.3
     - 2.7
+node_js:
+  - 4
 sudo: false
 before_install:
     - pip install -r requirements.txt

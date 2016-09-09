@@ -4,10 +4,9 @@ python:
     - 3.4
     - 3.3
     - 2.7
-node_js:
-  - 4
 sudo: false
 before_install:
+    - nvm install 4
     - pip install -r requirements.txt
     - pip install pytest
     - pip install pytest-cov

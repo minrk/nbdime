@@ -5,7 +5,6 @@
 
 """This file contains tests applying to reference notebook files from the nbdime/tests/files/ directory."""
 
-from __future__ import unicode_literals
 from __future__ import print_function
 
 import nbformat

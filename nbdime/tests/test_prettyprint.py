@@ -4,8 +4,7 @@
 # Distributed under the terms of the Modified BSD License.
 
 # Messes up tests by writing u'str':
-#from __future__ import unicode_literals
-
+#
 from __future__ import print_function
 
 try:

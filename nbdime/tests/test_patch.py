@@ -3,7 +3,6 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
-from __future__ import unicode_literals
 
 from nbdime import patch
 from nbdime.diff_format import op_patch, op_add, op_remove, op_replace, op_addrange, op_removerange
